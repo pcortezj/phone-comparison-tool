@@ -15,8 +15,8 @@ export async function GET(
 
     // Transform for frontend (e.g., for a select box)
     // Use modelValue as name and a deterministic id (you can change id generation if needed)
-    const devices = models.map((model, idx) => ({
-      id: `${brand}-${idx}-${encodeURIComponent(model.modelValue)}`,
+    const devices = models.map((model) => ({
+      id: `${encodeURIComponent(brand)}::${encodeURIComponent(model.modelValue)}`,
       name: model.modelValue,
       img: 'https://via.placeholder.com/300x400?text=Phone+Image',
       description: model.modelValue

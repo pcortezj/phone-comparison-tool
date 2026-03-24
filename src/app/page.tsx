@@ -7,7 +7,6 @@ interface Brand {
   id: string;
   name: string;
   devices: number;
-  brand: string
 }
 
 interface Device {
@@ -99,7 +98,7 @@ export default function Home() {
     device.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const selectedBrandName = brands.find(b => b.brand === selectedBrand)?.brand || '';
+  const selectedBrandName = brands.find((b) => b.id === selectedBrand)?.name || '';
   console.log('Selected Brand:', selectedBrandName);
 
   return (
