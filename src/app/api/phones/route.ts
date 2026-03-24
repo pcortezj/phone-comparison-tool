@@ -14,7 +14,7 @@ export async function GET() {
       message: 'Brands from RapidAPI Mobile Phone Specs Database'
     });
   } catch (error) {
-    console.error('Error in brands API:', error.stack);
+    console.error('Error in brands API:', error);
     
     return NextResponse.json({ 
       error: 'Failed to fetch brands', 
