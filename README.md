@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Smartphone Comparison Tool
 
-## Getting Started
+A modern web application for comparing smartphone specifications using the RapidAPI Mobile Phone Specs Database.
 
-First, run the development server:
+## Features
 
+- **Brand Selection**: Browse phones by manufacturer
+- **Device Search**: Search for specific devices within brands
+- **Side-by-Side Comparison**: Compare up to 4 devices simultaneously
+- **Detailed Specifications**: View comprehensive device specs
+- **Real-time Data**: Live data from RapidAPI Mobile Phone Specs Database
+- **Admin Panel**: Download and manage phone data
+
+## Tech Stack
+
+- **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS
+- **API**: RapidAPI Mobile Phone Specs Database
+- **Deployment**: Vercel-ready
+
+## Setup
+
+### 1. Clone the repository
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd difference-ai-app
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Install dependencies
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Configure RapidAPI
+1. Get your API key from [RapidAPI Mobile Phone Specs Database](https://rapidapi.com/makingdatameaningful/api/mobile-phone-specs-database)
+2. Create a `.env.local` file in the project root:
+```bash
+RAPIDAPI_KEY=your_api_key_here
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Run the development server
+```bash
+npm run dev
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000) to view the app.
 
-To learn more about Next.js, take a look at the following resources:
+## Usage
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Main App (`/`)
+- Select a brand from the dropdown
+- Search for devices within the brand
+- Add up to 4 devices to comparison
+- Click "Compare Devices" to view detailed comparison
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Admin Panel (`/admin`)
+- Download phone data by brand or all phones
+- View available brands and device counts
+- Monitor download progress
 
-## Deploy on Vercel
+## API Endpoints
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `GET /api/phones` - Get all brands
+- `GET /api/phones/[brand]` - Get devices for a brand
+- `GET /api/phones/device/[id]` - Get detailed device specifications
+- `GET /api/phones/download` - Get available brands for download
+- `POST /api/phones/download` - Download phone data
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Data Structure
+
+The app uses the RapidAPI Mobile Phone Specs Database which provides:
+- Basic device information (name, brand, model, image)
+- Detailed specifications (display, performance, camera, battery, etc.)
+- Pricing information
+- Connectivity and software details
+
+## Deployment
+
+The app is ready for deployment on Vercel:
+
+1. Push your code to GitHub
+2. Connect your repository to Vercel
+3. Add your `RAPIDAPI_KEY` environment variable in Vercel
+4. Deploy!
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## License
+
+MIT License
