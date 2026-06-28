@@ -1,52 +1,26 @@
 import { NextResponse } from 'next/server';
-import { phoneAPIClient } from '@/lib/phone-api-client';
-import fs from 'fs/promises';
-import path from 'path';
+import { getBrands, getCatalogStats, importPhoneData, listImportFiles } from '@/lib/phone-catalog';
 
 export async function POST(request: Request) {
   try {
-    const { brandId, downloadAll } = await request.json();
-    
-    let phones;
-    let filename;
-
-    if (downloadAll) {
-      console.log('Starting download of all phones...');
-      phones = await phoneAPIClient.downloadAllPhones();
-      filename = 'all-phones.json';
-    } else if (brandId) {
-      console.log(`Starting download of ${brandId} phones...`);
-      phones = await phoneAPIClient.downloadBrandPhones(brandId);
-      filename = `${brandId}-phones.json`;
-    } else {
-      return NextResponse.json({ 
-        error: 'Missing parameters. Provide either brandId or downloadAll: true' 
-      }, { status: 400 });
-    }
-
-    // Create data directory if it doesn't exist
-    const dataDir = path.join(process.cwd(), 'data');
-    await fs.mkdir(dataDir, { recursive: true });
-
-    // Save to file
-    const filePath = path.join(dataDir, filename);
-    await fs.writeFile(filePath, JSON.stringify(phones, null, 2));
-
-    console.log(`Data saved to ${filePath}`);
+    const { fileName, importAll } = await request.json();
+    const report = await importPhoneData(importAll ? undefined : fileName);
+    const stats = await getCatalogStats();
 
     return NextResponse.json({
       success: true,
-      message: `Downloaded ${phones.length} phones`,
-      filename,
-      filePath,
-      phoneCount: phones.length
+      message: report.files.length === 0 ? 'No import files found' : 'Import completed successfully',
+      importedCount: report.imported,
+      skippedCount: report.skipped,
+      files: report.files,
+      stats
     });
 
   } catch (error) {
     console.error('Error in download API:', error);
     
     return NextResponse.json({ 
-      error: 'Download failed',
+      error: 'Import failed',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
@@ -54,18 +28,27 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    // Get available brands
-    const brands = await phoneAPIClient.getBrands();
+    const [brands, importFiles, stats] = await Promise.all([
+      getBrands(),
+      listImportFiles(),
+      getCatalogStats()
+    ]);
     
     return NextResponse.json({
-      brands,
-      message: 'Available brands for download'
+      brands: brands.map((brand) => ({
+        id: brand.id,
+        name: brand.name,
+        deviceCount: brand.devices
+      })),
+      importFiles,
+      stats,
+      message: 'Local phone catalog admin'
     });
   } catch (error) {
-    console.error('Error fetching brands:', error);
+    console.error('Error fetching catalog admin data:', error);
     
     return NextResponse.json({ 
-      error: 'Failed to fetch brands',
+      error: 'Failed to fetch catalog admin data',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }

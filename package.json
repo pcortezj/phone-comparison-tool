@@ -6,12 +6,21 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:init": "sqlite3 prisma/dev.db < scripts/init-db.sql",
+    "db:studio": "prisma studio",
+    "import:phones": "node scripts/import-phone-data.mjs",
+    "import:phones:latest": "node scripts/import-phone-data.mjs gsmarena-latest-phones.json",
+    "scrape:gsmarena:latest": "python3 scripts/scrape-gsmarena.py --latest-only"
   },
   "dependencies": {
+    "@prisma/client": "^6.16.0",
+    "next": "14.0.4",
+    "prisma": "^6.16.0",
     "react": "^18",
-    "react-dom": "^18",
-    "next": "14.0.4"
+    "react-dom": "^18"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

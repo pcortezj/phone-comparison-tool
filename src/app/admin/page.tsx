@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 interface Brand {
   id: string;
@@ -8,46 +9,65 @@ interface Brand {
   deviceCount: number;
 }
 
-interface DownloadResult {
+interface ImportFile {
+  fileName: string;
+  byteSize: number;
+  updatedAt: string;
+}
+
+interface CatalogStats {
+  brandCount: number;
+  deviceCount: number;
+  importFileCount: number;
+}
+
+interface ImportResult {
   success: boolean;
   message: string;
-  filename?: string;
-  phoneCount?: number;
+  importedCount?: number;
+  skippedCount?: number;
+  files?: Array<{
+    fileName: string;
+    imported: number;
+    skipped: number;
+  }>;
 }
 
 export default function AdminPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [selectedBrand, setSelectedBrand] = useState<string>('');
-  const [downloading, setDownloading] = useState(false);
-  const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(null);
+  const [importFiles, setImportFiles] = useState<ImportFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState('');
+  const [stats, setStats] = useState<CatalogStats | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<ImportResult | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchBrands();
+    void fetchAdminData();
   }, []);
 
-  const fetchBrands = async () => {
+  const fetchAdminData = async () => {
     try {
       const response = await fetch('/api/phones/download');
       const data = await response.json();
-      
+
       if (data.brands) {
         setBrands(data.brands);
+        setImportFiles(data.importFiles || []);
+        setStats(data.stats || null);
       } else {
-        console.error('Failed to fetch brands:', data.error);
+        console.error('Failed to fetch admin data:', data.error);
       }
     } catch (error) {
-      console.error('Error fetching brands:', error);
+      console.error('Error fetching admin data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const downloadBrandPhones = async () => {
-    if (!selectedBrand) return;
-
-    setDownloading(true);
-    setDownloadResult(null);
+  const runImport = async (body: Record<string, unknown>) => {
+    setImporting(true);
+    setResult(null);
 
     try {
       const response = await fetch('/api/phones/download', {
@@ -55,178 +75,193 @@ export default function AdminPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ brandId: selectedBrand }),
+        body: JSON.stringify(body),
       });
 
-      const result = await response.json();
-      setDownloadResult(result);
+      const payload = await response.json();
+      setResult(payload);
+      await fetchAdminData();
     } catch (error) {
-      console.error('Download error:', error);
-      setDownloadResult({
+      console.error('Import error:', error);
+      setResult({
         success: false,
-        message: 'Download failed: ' + (error instanceof Error ? error.message : 'Unknown error')
+        message: 'Import failed: ' + (error instanceof Error ? error.message : 'Unknown error'),
       });
     } finally {
-      setDownloading(false);
-    }
-  };
-
-  const downloadAllPhones = async () => {
-    setDownloading(true);
-    setDownloadResult(null);
-
-    try {
-      const response = await fetch('/api/phones/download', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ downloadAll: true }),
-      });
-
-      const result = await response.json();
-      setDownloadResult(result);
-    } catch (error) {
-      console.error('Download error:', error);
-      setDownloadResult({
-        success: false,
-        message: 'Download failed: ' + (error instanceof Error ? error.message : 'Unknown error')
-      });
-    } finally {
-      setDownloading(false);
+      setImporting(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-800">Loading brands...</p>
+      <main className="admin-shell">
+        <div className="compare-status-card">
+          <div className="spinner"></div>
+          <p>Loading catalog admin...</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Phone Data Download</h1>
-            <p className="text-gray-700">Download phone specifications from RapidAPI Mobile Phone Specs Database</p>
-            <a href="/" className="text-blue-600 hover:underline">← Back to main app</a>
+    <main className="admin-shell">
+      <section className="admin-hero">
+        <div className="admin-hero-copy">
+          <span className="admin-kicker">Catalog control room</span>
+          <h1>Import and maintain your local phone dataset.</h1>
+          <p>Bring scraped or open-source phone JSON into the SQLite catalog, review incoming files, and keep your searchable inventory current.</p>
+        </div>
+
+        <div className="admin-action-row">
+          <Link href="/" className="ghost-link">
+            Back to main app
+          </Link>
+        </div>
+
+        <div className="admin-note">
+          <h2>Workflow</h2>
+          <ol>
+            <li>Drop raw JSON arrays into <code>data/imports</code>.</li>
+            <li>Import one file or every available file from this page.</li>
+            <li>The app upserts brands and devices into the local Prisma SQLite database.</li>
+          </ol>
+        </div>
+      </section>
+
+      {stats && (
+        <section className="admin-stats">
+          <article className="admin-stat">
+            <span>Brands</span>
+            <strong>{stats.brandCount}</strong>
+          </article>
+          <article className="admin-stat">
+            <span>Devices</span>
+            <strong>{stats.deviceCount}</strong>
+          </article>
+          <article className="admin-stat">
+            <span>Import Files</span>
+            <strong>{stats.importFileCount}</strong>
+          </article>
+        </section>
+      )}
+
+      <section className="admin-grid">
+        <article className="admin-panel">
+          <div className="admin-panel-header">
+            <div>
+              <p className="panel-kicker">Single file</p>
+              <h2>Import selected file</h2>
+            </div>
+            <span className="admin-tag">Targeted refresh</span>
           </div>
 
-          {/* Setup Instructions */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
-            <h2 className="text-lg font-semibold text-blue-900 mb-2">Setup Required</h2>
-            <p className="text-blue-800 mb-2">
-              To use this feature, you need to:
-            </p>
-            <ol className="text-blue-800 list-decimal list-inside space-y-1">
-              <li>Get a RapidAPI key from <a href="https://rapidapi.com/makingdatameaningful/api/mobile-phone-specs-database" target="_blank" rel="noopener noreferrer" className="underline">Mobile Phone Specs Database</a></li>
-              <li>Add <code className="bg-blue-100 px-1 rounded">RAPIDAPI_KEY=your_api_key_here</code> to your <code className="bg-blue-100 px-1 rounded">.env.local</code> file</li>
-              <li>Restart your development server</li>
-            </ol>
+          <div className="admin-panel-body">
+            <label className="admin-field">
+              <span>Select file</span>
+              <select value={selectedFile} onChange={(event) => setSelectedFile(event.target.value)}>
+                <option value="">Choose a JSON file...</option>
+                {importFiles.map((file) => (
+                  <option key={file.fileName} value={file.fileName}>
+                    {file.fileName}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              onClick={() => void runImport({ fileName: selectedFile })}
+              disabled={!selectedFile || importing}
+              className="primary-button"
+            >
+              {importing ? 'Importing...' : 'Import Selected File'}
+            </button>
+          </div>
+        </article>
+
+        <article className="admin-panel">
+          <div className="admin-panel-header">
+            <div>
+              <p className="panel-kicker">Bulk update</p>
+              <h2>Import all files</h2>
+            </div>
+            <span className="admin-tag">Full sync</span>
           </div>
 
-          {/* Download Options */}
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Download by Brand */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Download by Brand</h2>
-              
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Brand
-                </label>
-                <select
-                  value={selectedBrand}
-                  onChange={(e) => setSelectedBrand(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Choose a brand...</option>
-                  {brands.map((brand) => (
-                    <option key={brand.id} value={brand.id}>
-                      {brand.name} ({brand.deviceCount} devices)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                onClick={downloadBrandPhones}
-                disabled={!selectedBrand || downloading}
-                className={`w-full px-4 py-2 rounded-lg font-medium ${
-                  !selectedBrand || downloading
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                {downloading ? 'Downloading...' : 'Download Brand Phones'}
-              </button>
-            </div>
-
-            {/* Download All */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Download All Phones</h2>
-              <p className="text-gray-700 mb-4">
-                Download all available phones from the database. This may take a while and use many API calls.
-              </p>
-
-              <button
-                onClick={downloadAllPhones}
-                disabled={downloading}
-                className={`w-full px-4 py-2 rounded-lg font-medium ${
-                  downloading
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
-              >
-                {downloading ? 'Downloading...' : 'Download All Phones'}
-              </button>
-            </div>
+          <div className="admin-panel-body">
+            <p>Import every JSON file currently present in <code>data/imports</code>. Existing devices are updated in place.</p>
+            <button
+              onClick={() => void runImport({ importAll: true })}
+              disabled={importing}
+              className="secondary-button"
+            >
+              {importing ? 'Importing...' : 'Import All Files'}
+            </button>
           </div>
+        </article>
+      </section>
 
-          {/* Download Result */}
-          {downloadResult && (
-            <div className={`mt-8 p-4 rounded-lg ${
-              downloadResult.success 
-                ? 'bg-green-50 border border-green-200' 
-                : 'bg-red-50 border border-red-200'
-            }`}>
-              <h3 className={`font-semibold mb-2 ${
-                downloadResult.success ? 'text-green-900' : 'text-red-900'
-              }`}>
-                {downloadResult.success ? 'Download Successful' : 'Download Failed'}
-              </h3>
-              <p className={downloadResult.success ? 'text-green-800' : 'text-red-800'}>
-                {downloadResult.message}
-              </p>
-              {downloadResult.success && downloadResult.phoneCount && (
-                <p className="text-green-800 mt-2">
-                  Downloaded {downloadResult.phoneCount} phones to {downloadResult.filename}
-                </p>
-              )}
-            </div>
+      {result && (
+        <section className={result.success ? 'admin-result-card success' : 'admin-result-card error'}>
+          <p className="panel-kicker">{result.success ? 'Import successful' : 'Import failed'}</p>
+          <h2>{result.message}</h2>
+          {result.success && result.importedCount !== undefined && (
+            <p>Imported {result.importedCount} phones and skipped {result.skippedCount || 0}.</p>
           )}
-
-          {/* Available Brands List */}
-          <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Available Brands</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {brands.map((brand) => (
-                <div key={brand.id} className="p-3 border border-gray-200 rounded-lg">
-                  <div className="font-medium text-gray-900">{brand.name}</div>
-                  <div className="text-sm text-gray-600">{brand.deviceCount} devices</div>
-                </div>
+          {result.files && result.files.length > 0 && (
+            <div className="admin-result-files">
+              {result.files.map((file) => (
+                <p key={file.fileName}>
+                  {file.fileName}: imported {file.imported}, skipped {file.skipped}
+                </p>
               ))}
             </div>
+          )}
+        </section>
+      )}
+
+      <section className="admin-section">
+        <div className="admin-panel-header">
+          <div>
+            <p className="panel-kicker">Input queue</p>
+            <h2>Detected import files</h2>
           </div>
         </div>
-      </div>
-    </div>
+
+        <div className="admin-file-grid">
+          {importFiles.length === 0 && (
+            <div className="empty-card">
+              <p>No JSON files found in <code>data/imports</code>.</p>
+            </div>
+          )}
+          {importFiles.map((file) => (
+            <article key={file.fileName} className="admin-file-card">
+              <p className="admin-micro">Source file</p>
+              <h3>{file.fileName}</h3>
+              <p>{Math.round(file.byteSize / 1024)} KB</p>
+              <p>Updated {new Date(file.updatedAt).toLocaleString()}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <div className="admin-panel-header">
+          <div>
+            <p className="panel-kicker">Catalog map</p>
+            <h2>Catalog brands</h2>
+          </div>
+        </div>
+
+        <div className="admin-brand-grid">
+          {brands.map((brand) => (
+            <article key={brand.id} className="admin-brand-card">
+              <p className="admin-micro">Brand</p>
+              <h3>{brand.name}</h3>
+              <p>{brand.deviceCount} devices</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </main>
   );
-} 
+}

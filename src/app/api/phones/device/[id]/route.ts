@@ -1,71 +1,83 @@
 import { NextResponse } from 'next/server';
-import { phoneAPIClient } from '@/lib/phone-api-client';
+import { getDeviceByBrandModel, getDeviceByEncodedId, getSpecsForDevice } from '@/lib/phone-catalog';
+import phoneNormalization from '@/lib/phone-normalization.js';
 
-function extractBrandModel(id: string, searchParams: URLSearchParams) {
-  const brandParam = searchParams.get('brand');
-  const modelParam = searchParams.get('model');
+const { parseNumericArrayBlob } = phoneNormalization as {
+  parseNumericArrayBlob: (value: string | null) => number[];
+};
 
-  if (brandParam && modelParam) {
-    return {
-      brand: decodeURIComponent(brandParam),
-      model: decodeURIComponent(modelParam)
-    };
+const formatNumber = (value: number | null | undefined, suffix?: string) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
   }
 
-  const decodedId = decodeURIComponent(id);
+  return `${value}${suffix || ''}`;
+};
 
-  if (decodedId.includes('::')) {
-    const [brand, model] = decodedId.split('::');
-    if (brand && model) {
-      return { brand, model };
-    }
+const formatOptions = (values: number[], suffix: string) => {
+  if (values.length === 0) {
+    return null;
   }
 
-  if (decodedId.includes('_')) {
-    const [brand, ...modelParts] = decodedId.split('_');
-    if (brand && modelParts.length > 0) {
-      return { brand, model: modelParts.join('_') };
-    }
+  return values.map((value) => `${value}${suffix}`).join(', ');
+};
+
+const formatDate = (value: Date | null | undefined) => {
+  if (!value) {
+    return null;
   }
 
-  if (decodedId.includes('-')) {
-    const [brand, ...modelParts] = decodedId.split('-');
-    if (brand && modelParts.length > 0) {
-      return { brand, model: modelParts.join('-') };
-    }
-  }
+  return value.toISOString().slice(0, 10);
+};
 
-  return null;
-}
+const displayValue = (value: string | null | undefined) => value || 'N/A';
+const fallbackSoftwareUi = (os: string) => (os.toLowerCase().startsWith('ios') ? 'Default iOS' : null);
+const dedupe = (values: string[]) => [...new Set(values)];
+const formatStorageCapacity = (value: number) => (value >= 1024 && value % 1024 === 0 ? `${value / 1024}TB` : `${value}GB`);
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } | Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }>}
 ) {
+  let id = 'unknown';
   try {
-    const { id } = await params;
-    const url = new URL(request.url);
-
-    const parsed = extractBrandModel(id, url.searchParams);
-
-    if (!parsed) {
-      return NextResponse.json(
-        {
-          error: 'Invalid device identifier. Expected brand/model information.',
-          details: 'Use the id format "brand::model" or provide ?brand=<brand>&model=<model>.'
-        },
-        { status: 400 }
-      );
+    const rawId = (await params).id;
+    try {
+      id = decodeURIComponent(rawId);
+    } catch {
+      id = rawId;
     }
 
-    const phone = await phoneAPIClient.getPhoneDetailsByBrandModel(parsed.brand, parsed.model);
+    const url = new URL(request.url);
+    const brandParam = url.searchParams.get('brand');
+    const modelParam = url.searchParams.get('model');
+
+    let phone;
+
+    if (brandParam && modelParam) {
+      phone = await getDeviceByBrandModel(brandParam, modelParam);
+    } else if (id.includes('/')) {
+      const [brand, model] = id.split('/');
+      phone = await getDeviceByBrandModel(brand, model);
+    } else {
+      phone = await getDeviceByEncodedId(id);
+    }
+
+    if (!phone) {
+      return NextResponse.json({
+        error: 'Device not found',
+        details: `No catalog device matches "${id}"`,
+      }, { status: 404 });
+    }
 
     const normalizedSpecs: Record<string, Record<string, string>> = {};
-
-    if (phone.specs && typeof phone.specs === 'object') {
-      Object.entries(phone.specs as Record<string, unknown>).forEach(([key, value]) => {
+    const parsedSpecs = getSpecsForDevice(phone.specBlob);
+    const ramOptions = parseNumericArrayBlob(phone.performanceRamOptions);
+    const storageOptions = parseNumericArrayBlob(phone.storageOptions);
+    if (parsedSpecs && typeof parsedSpecs === 'object') {
+      Object.entries(parsedSpecs).forEach(([key, value]) => {
         if (value && typeof value === 'object') {
-          normalizedSpecs[key] = Object.entries(value as Record<string, unknown>).reduce(
+          normalizedSpecs[key] = Object.entries(value).reduce(
             (acc, [k, v]) => ({ ...acc, [k.toLowerCase()]: String(v ?? '') }),
             {}
           );
@@ -73,141 +85,225 @@ export async function GET(
       });
     }
 
-    if (Array.isArray(phone.specifications) && !phone.specs) {
-      phone.specifications.forEach((section) => {
-        if (!section || typeof section !== 'object') return;
-        const sectionObj = section as Record<string, unknown>;
-        const title = sectionObj.title;
-
-        if (!title || typeof title !== 'string') return;
-
-        const key = title.toLowerCase();
-        normalizedSpecs[key] = normalizedSpecs[key] || {};
-
-        const rows = Array.isArray(sectionObj.specs)
-          ? sectionObj.specs
-          : Array.isArray(sectionObj.data)
-            ? sectionObj.data
-            : [];
-
-        rows.forEach((row) => {
-          if (!row || typeof row !== 'object') return;
-          const rowObj = row as Record<string, unknown>;
-          const name = rowObj.key || rowObj.name;
-          const value = rowObj.value || rowObj.spec || rowObj.content;
-
-          if (name && typeof name === 'string' && value !== undefined) {
-            normalizedSpecs[key][name.toLowerCase().replace(/\s+/g, '_')] = String(value);
-          }
-        });
-      });
-    }
-
-    const getSpec = (path: string[], fallback = 'N/A') => {
+    const getSpec = (path: string[], fallback?: string) => {
       let cur: unknown = normalizedSpecs;
-
       for (const p of path) {
         if (!cur || typeof cur !== 'object') {
-          return fallback;
+          cur = undefined;
+          break;
         }
         cur = (cur as Record<string, unknown>)[p];
       }
-
       if (cur === undefined || cur === null || cur === '') {
-        return fallback;
+        return fallback ?? 'N/A';
       }
-
       return String(cur);
     };
 
+    const getFirstSpec = (paths: string[][], fallback = 'N/A') => {
+      for (const path of paths) {
+        const value = getSpec(path, '');
+        if (value !== 'N/A' && value !== '') {
+          return value;
+        }
+      }
+      return fallback;
+    };
+
+    const extractRamFromInternal = () => {
+      const rawRam = getFirstSpec([
+        ['performance', 'ram'],
+        ['performance', 'internal'],
+      ], '');
+      if (!rawRam || rawRam === 'N/A') {
+        return 'N/A';
+      }
+
+      const matches = dedupe(
+        [...rawRam.matchAll(/(\d+(?:\.\d+)?)\s*GB(?:\s*RAM)?\b/gi)].map((match) => `${match[1]}GB RAM`)
+      );
+      return matches.length > 0 ? matches.join(', ') : rawRam;
+    };
+
+    const extractStorageFromInternal = () => {
+      const rawStorage = getFirstSpec([
+        ['performance', 'storage'],
+        ['performance', 'internal'],
+      ], '');
+      if (!rawStorage || rawStorage === 'N/A') {
+        return 'N/A';
+      }
+
+      const matches = dedupe(
+        [...rawStorage.matchAll(/(\d+(?:\.\d+)?)\s*(TB|GB)\b(?!\s*RAM)/gi)].map(
+          (match) => `${match[1]}${match[2].toUpperCase()}`
+        )
+      );
+      return matches.length > 0 ? matches.join(', ') : rawStorage;
+    };
+
+    const extractBatteryCapacity = () => {
+      const batteryType = getSpec(['battery', 'type'], '');
+      if (!batteryType || batteryType === 'N/A') {
+        return 'N/A';
+      }
+
+      const match = batteryType.match(/\d{3,5}\s*mAh/i);
+      return match ? match[0] : batteryType;
+    };
+
+    const extractWirelessCharging = () => {
+      const charging = getSpec(['battery', 'charging'], '');
+      if (!charging || charging === 'N/A') {
+        return 'N/A';
+      }
+
+      const wirelessMatch = charging.match(/\d+(?:\.\d+)?W wireless[^,)]*/i);
+      return wirelessMatch ? wirelessMatch[0] : charging.toLowerCase().includes('wireless') ? charging : 'N/A';
+    };
+
+    const extractRefreshRate = () => {
+      const displayType = getSpec(['display', 'type'], '');
+      if (!displayType || displayType === 'N/A') {
+        return 'N/A';
+      }
+
+      const match = displayType.match(/\d{2,3}\s*Hz/i);
+      return match ? match[0].replace(/\s+/g, '') : 'N/A';
+    };
+
+    const processor = getFirstSpec([
+      ['performance', 'processor'],
+      ['performance', 'chipset'],
+      ['performance', 'cpu'],
+    ], phone.performanceChipset || 'N/A');
+    const ram = ramOptions.length > 0
+      ? formatOptions(ramOptions, 'GB RAM') || 'N/A'
+      : extractRamFromInternal();
+    const storage = storageOptions.length > 0
+      ? storageOptions.map((value) => formatStorageCapacity(value)).join(', ')
+      : extractStorageFromInternal();
+    const batteryCapacity = getFirstSpec([
+      ['battery', 'capacity'],
+    ], formatNumber(phone.batteryCapacityMah, ' mAh') || extractBatteryCapacity());
+    const mainCamera = getFirstSpec([
+      ['camera', 'main'],
+      ['camera', 'triple'],
+      ['camera', 'dual'],
+      ['camera', 'quad'],
+      ['camera', 'single'],
+    ], formatNumber(phone.cameraMainMp, ' MP') || 'N/A');
+    const frontCamera = getFirstSpec([
+      ['camera', 'front'],
+      ['camera', 'selfie'],
+      ['camera', 'single'],
+    ], formatNumber(phone.cameraFrontMp, ' MP') || 'N/A');
+    const os = getFirstSpec([
+      ['software', 'os'],
+      ['performance', 'os'],
+    ]);
+    const ui = getFirstSpec([
+      ['software', 'ui'],
+      ['software', 'user_interface'],
+    ], fallbackSoftwareUi(os) || 'N/A');
+
+    // Transform the data to match the expected format
     const deviceDetail = {
-      name: phone.name || `${parsed.brand} ${parsed.model}`,
-      img: phone.image || 'https://via.placeholder.com/300x400?text=Phone+Image',
-      rawSpecs: phone.specs || phone.specifications || null,
+      name: phone.name,
+      img: phone.imageUrl || 'https://via.placeholder.com/300x400?text=Phone+Image',
+      rawSpecs: parsedSpecs,
       quickSpec: [
-        { name: 'Display', value: getSpec(['display', 'size']) },
-        { name: 'Processor', value: getSpec(['performance', 'processor']) },
-        { name: 'RAM', value: getSpec(['performance', 'ram']) },
-        { name: 'Storage', value: getSpec(['performance', 'storage']) },
-        { name: 'Battery', value: getSpec(['battery', 'capacity']) }
+        { name: 'Display', value: displayValue(formatNumber(phone.displaySizeInches, ' in') || getSpec(['display', 'size'], '')) },
+        { name: 'Processor', value: displayValue(processor) },
+        { name: 'RAM', value: displayValue(ram) },
+        { name: 'Storage', value: displayValue(storage) },
+        { name: 'Battery', value: displayValue(batteryCapacity) }
       ],
       detailSpec: [
         {
           category: 'Display',
           specifications: [
-            { name: 'Size', value: getSpec(['display', 'size']) },
-            { name: 'Resolution', value: getSpec(['display', 'resolution']) },
-            { name: 'Type', value: getSpec(['display', 'type']) },
-            { name: 'Refresh Rate', value: getSpec(['display', 'refresh_rate']) }
+            { name: 'Size', value: displayValue(formatNumber(phone.displaySizeInches, ' in') || getSpec(['display', 'size'], '')) },
+            { name: 'Resolution', value: displayValue(phone.displayResolution || getSpec(['display', 'resolution'], '')) },
+            { name: 'Type', value: displayValue(phone.displayType || getSpec(['display', 'type'], '')) },
+            {
+              name: 'Refresh Rate',
+              value: displayValue(
+                formatNumber(phone.displayRefreshRate, 'Hz') || getFirstSpec([['display', 'refresh_rate']], extractRefreshRate())
+              )
+            }
           ]
         },
         {
           category: 'Performance',
           specifications: [
-            { name: 'Processor', value: getSpec(['performance', 'processor']) },
-            { name: 'RAM', value: getSpec(['performance', 'ram']) },
-            { name: 'Storage', value: getSpec(['performance', 'storage']) },
-            { name: 'GPU', value: getSpec(['performance', 'gpu']) }
+            { name: 'Processor', value: displayValue(processor) },
+            { name: 'Chipset Node', value: displayValue(formatNumber(phone.performanceChipsetNodeNm, ' nm')) },
+            { name: 'RAM', value: displayValue(ram) },
+            { name: 'Storage', value: displayValue(storage) },
+            { name: 'GPU', value: getSpec(['performance','gpu']) }
           ]
         },
         {
           category: 'Camera',
           specifications: [
-            { name: 'Main Camera', value: getSpec(['camera', 'main']) },
-            { name: 'Front Camera', value: getSpec(['camera', 'front']) },
-            { name: 'Video', value: getSpec(['camera', 'video']) }
+            { name: 'Main Camera', value: displayValue(mainCamera) },
+            { name: 'Front Camera', value: displayValue(frontCamera) },
+            { name: 'Video', value: getSpec(['camera','video']) }
           ]
         },
         {
           category: 'Battery & Charging',
           specifications: [
-            { name: 'Capacity', value: getSpec(['battery', 'capacity']) },
-            { name: 'Wired Charging', value: getSpec(['battery', 'charging']) },
-            { name: 'Wireless Charging', value: getSpec(['battery', 'wireless']) }
+            { name: 'Capacity', value: displayValue(batteryCapacity) },
+            {
+              name: 'Wired Charging',
+              value: displayValue(formatNumber(phone.batteryWiredChargingW, 'W') || getSpec(['battery', 'charging'], ''))
+            },
+            { name: 'Wireless Charging', value: getFirstSpec([['battery','wireless']], extractWirelessCharging()) }
           ]
         },
         {
           category: 'Design & Build',
           specifications: [
-            { name: 'Dimensions', value: getSpec(['design', 'dimensions']) },
-            { name: 'Weight', value: getSpec(['design', 'weight']) },
-            { name: 'Materials', value: getSpec(['design', 'materials']) },
-            { name: 'Colors', value: getSpec(['design', 'colors']) }
+            { name: 'Dimensions', value: getSpec(['design','dimensions']) },
+            { name: 'Weight', value: displayValue(formatNumber(phone.weightG, ' g') || getSpec(['design', 'weight'], '')) },
+            { name: 'Materials', value: getFirstSpec([['design', 'materials'], ['design', 'build']]) },
+            { name: 'Colors', value: getFirstSpec([['design', 'colors'], ['misc', 'colors']]) }
           ]
         },
         {
           category: 'Connectivity',
           specifications: [
-            { name: 'Network', value: getSpec(['connectivity', 'network']) },
-            { name: 'WiFi', value: getSpec(['connectivity', 'wifi']) },
-            { name: 'Bluetooth', value: getSpec(['connectivity', 'bluetooth']) },
-            { name: 'GPS', value: getSpec(['connectivity', 'gps']) }
+            { name: 'Network', value: getFirstSpec([['connectivity', 'network'], ['connectivity', 'technology']]) },
+            { name: 'WiFi', value: getFirstSpec([['connectivity', 'wifi'], ['connectivity', 'wlan']]) },
+            { name: 'Bluetooth', value: getSpec(['connectivity','bluetooth']) },
+            { name: 'GPS', value: getFirstSpec([['connectivity', 'gps'], ['connectivity', 'positioning']]) }
           ]
         },
         {
           category: 'Software',
           specifications: [
-            { name: 'OS', value: getSpec(['software', 'os']) },
-            { name: 'UI', value: getSpec(['software', 'ui']) }
+            { name: 'OS', value: os },
+            { name: 'UI', value: displayValue(ui) },
+            { name: 'Release Date', value: displayValue(formatDate(phone.releaseDate)) },
+            { name: 'Discontinued', value: phone.isDiscontinued ? 'Yes' : 'No' }
           ]
         }
       ]
     };
-
-    return NextResponse.json({
+    
+    return NextResponse.json({ 
       device: deviceDetail,
-      message: 'Device details from RapidAPI Mobile Phone Specs Database'
+      message: 'Device details from the local catalog'
     });
   } catch (error) {
-    console.error('Error in device detail API:', error);
-
-    return NextResponse.json(
-      {
-        error: 'Failed to fetch device details',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        suggestion: 'Check your RapidAPI key configuration and verify brand/model values.'
-      },
-      { status: 500 }
-    );
+    console.error(`Error in device detail API for device ${(await params).id}:`, error);
+    
+    return NextResponse.json({ 
+      error: 'Failed to fetch device details', 
+      details: error instanceof Error ? error.message : 'Unknown error',
+      suggestion: 'Import a JSON dataset into the local catalog first'
+    }, { status: 500 });
   }
-}
+} 
