@@ -1,17 +1,14 @@
 import { NextResponse } from 'next/server';
-import { phoneAPIClient } from '@/lib/phone-api-client';
+import { getBrands, getReleaseYears } from '@/lib/phone-catalog';
 
 export async function GET() {
   try {
-    const brands = await phoneAPIClient.getBrands();
-    console.log(brands);
+    const [brands, releaseYears] = await Promise.all([getBrands(), getReleaseYears()]);
+
     return NextResponse.json({ 
-      brands: brands.map(brand => ({
-        id: brand.brandValue,
-        name: brand.brandValue,
-        devices: 0 // We don't have device count from this endpoint
-      })),
-      message: 'Brands from RapidAPI Mobile Phone Specs Database'
+      brands,
+      releaseYears,
+      message: 'Phone brands from the local catalog'
     });
   } catch (error) {
     console.error('Error in brands API:', error);
@@ -19,7 +16,7 @@ export async function GET() {
     return NextResponse.json({ 
       error: 'Failed to fetch brands', 
       details: error instanceof Error ? error.message : 'Unknown error',
-      suggestion: 'Check your RapidAPI key configuration'
+      suggestion: 'Import a JSON dataset into the local catalog first'
     }, { status: 500 });
   }
 } 

@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Brand {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  devices   Device[]
+}
+
+model Device {
+  id                       Int      @id @default(autoincrement())
+  brandId                  Int
+  slug                     String
+  model                    String
+  name                     String
+  imageUrl                 String?
+  specBlob                 String?
+  rawPayload               String?
+  sourceFile               String?
+  releaseDate              DateTime?
+  displaySizeInches        Float?
+  displayResolution        String?
+  displayRefreshRate       Int?
+  displayType              String?
+  performanceChipset       String?
+  performanceChipsetNodeNm Float?
+  performanceRamOptions    String?
+  storageOptions           String?
+  cameraMainMp             Float?
+  cameraFrontMp            Float?
+  batteryCapacityMah       Int?
+  batteryWiredChargingW    Float?
+  weightG                  Float?
+  lastScrapedAt            DateTime?
+  isDiscontinued           Boolean  @default(false)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  brand                    Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, slug], name: "brandId_slug")
+  @@index([brandId, name])
+}

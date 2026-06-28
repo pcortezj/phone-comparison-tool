@@ -30,6 +30,13 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# local phone datasets
+/data/imports/*.json
+/dev.db
+/dev.db-journal
+/prisma/dev.db
+/prisma/dev.db-journal
+
 # env files (can opt-in for committing if needed)
 .env*
 

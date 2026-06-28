@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 interface Brand {
   id: string;
   name: string;
   devices: number;
+  brand: string;
 }
 
 interface Device {
@@ -14,243 +16,430 @@ interface Device {
   name: string;
   img: string;
   description: string;
+  brand?: string;
 }
+
+interface DeviceDetail {
+  name: string;
+  img: string;
+  quickSpec: Array<{ name: string; value: string }>;
+  detailSpec: Array<{
+    category: string;
+    specifications: Array<{ name: string; value: string }>;
+  }>;
+}
+
+const MAX_COMPARE = 4;
 
 export default function Home() {
   const router = useRouter();
   const [brands, setBrands] = useState<Brand[]>([]);
+  const [releaseYears, setReleaseYears] = useState<number[]>([]);
   const [selectedBrand, setSelectedBrand] = useState<string>('');
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedDevices, setSelectedDevices] = useState<Device[]>([]);
+  const [selectedReleaseYear, setSelectedReleaseYear] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [showDeviceDropdown, setShowDeviceDropdown] = useState(false);
+  const [results, setResults] = useState<Device[]>([]);
+  const [selectedDevices, setSelectedDevices] = useState<Device[]>([]);
+  const [loadingBrands, setLoadingBrands] = useState(true);
+  const [loadingResults, setLoadingResults] = useState(false);
+  const [activeDevice, setActiveDevice] = useState<Device | null>(null);
+  const [activeDeviceDetail, setActiveDeviceDetail] = useState<DeviceDetail | null>(null);
+  const [deviceModalLoading, setDeviceModalLoading] = useState(false);
+  const [deviceModalError, setDeviceModalError] = useState<string | null>(null);
+  const hasActiveSearch = searchTerm.trim().length > 0 || selectedBrand.length > 0 || selectedReleaseYear.length > 0;
 
   useEffect(() => {
-    fetchBrands();
+    void fetchBrands();
   }, []);
 
   useEffect(() => {
-    if (selectedBrand) {
-      fetchDevices(selectedBrand);
-    } else {
-      setDevices([]);
+    if (!hasActiveSearch) {
+      setResults([]);
+      setLoadingResults(false);
+      return;
     }
-  }, [selectedBrand]);
+
+    const timeout = setTimeout(() => {
+      void searchDevices(searchTerm, selectedBrand, selectedReleaseYear);
+    }, 200);
+
+    return () => clearTimeout(timeout);
+  }, [searchTerm, selectedBrand, selectedReleaseYear, hasActiveSearch]);
+
+  useEffect(() => {
+    if (!activeDevice) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeDeviceModal();
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [activeDevice]);
 
   const fetchBrands = async () => {
     try {
       const response = await fetch('/api/phones');
       const data = await response.json();
-      
-      if (data.error) {
-        console.error('Failed to fetch brands:', data.error);
-        setBrands([]);
-      } else {
-        setBrands(data.brands || []);
-      }
+      setBrands(data.brands || []);
+      setReleaseYears(data.releaseYears || []);
     } catch (error) {
       console.error('Error fetching brands:', error);
       setBrands([]);
+      setReleaseYears([]);
+    } finally {
+      setLoadingBrands(false);
     }
   };
 
-  const fetchDevices = async (brandId: string) => {
-    setLoading(true);
+  const searchDevices = async (query: string, brand: string, releaseYear: string) => {
+    setLoadingResults(true);
     try {
-      const response = await fetch(`/api/phones/${brandId}`);
+      const params = new URLSearchParams();
+      if (query.trim()) params.set('q', query.trim());
+      if (brand) params.set('brand', brand);
+      if (releaseYear) params.set('year', releaseYear);
+
+      const response = await fetch(`/api/phones/search?${params.toString()}`);
       const data = await response.json();
-      
-      if (data.error) {
-        console.error('Failed to fetch devices:', data.error);
-        setDevices([]);
-      } else {
-        setDevices(data.devices || []);
-      }
+      setResults(data.devices || []);
     } catch (error) {
-      console.error('Error fetching devices:', error);
-      setDevices([]);
-    } finally { 
-      setLoading(false);
+      console.error('Error searching devices:', error);
+      setResults([]);
+    } finally {
+      setLoadingResults(false);
     }
   };
 
   const addToComparison = (device: Device) => {
-    if (selectedDevices.length < 4 && !selectedDevices.find(d => d.id === device.id)) {
-      setSelectedDevices([...selectedDevices, device]);
-      setSearchTerm('');
-      setShowDeviceDropdown(false);
+    if (selectedDevices.some((item) => item.id === device.id) || selectedDevices.length >= MAX_COMPARE) {
+      return;
     }
+
+    setSelectedDevices((current) => [...current, device]);
   };
 
   const removeFromComparison = (deviceId: string) => {
-    setSelectedDevices(selectedDevices.filter(d => d.id !== deviceId));
+    setSelectedDevices((current) => current.filter((device) => device.id !== deviceId));
   };
 
-  const handleCompareDevices = () => {
-    if (selectedDevices.length >= 2) {
-      const deviceIds = selectedDevices.map(device => device.id).join(',');
-      router.push(`/compare?devices=${deviceIds}`);
+  const openDeviceModal = async (device: Device) => {
+    setActiveDevice(device);
+    setActiveDeviceDetail(null);
+    setDeviceModalError(null);
+    setDeviceModalLoading(true);
+
+    try {
+      const response = await fetch(`/api/phones/device/${encodeURIComponent(device.id)}`);
+      const payload = await response.json();
+
+      if (!response.ok || payload.error) {
+        throw new Error(payload.details || payload.error || 'Failed to load the device.');
+      }
+
+      setActiveDeviceDetail(payload.device || null);
+    } catch (error) {
+      setDeviceModalError(error instanceof Error ? error.message : 'Failed to load the device.');
+    } finally {
+      setDeviceModalLoading(false);
     }
   };
 
-  const filteredDevices = devices.filter(device =>
-    device.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const closeDeviceModal = () => {
+    setActiveDevice(null);
+    setActiveDeviceDetail(null);
+    setDeviceModalError(null);
+    setDeviceModalLoading(false);
+  };
 
-  const selectedBrandName = brands.find((b) => b.id === selectedBrand)?.name || '';
-  console.log('Selected Brand:', selectedBrandName);
+  const submitComparison = () => {
+    if (selectedDevices.length < 2) {
+      return;
+    }
+
+    const ids = selectedDevices.map((device) => device.id).join(',');
+    router.push(`/compare?devices=${ids}`);
+  };
+
+  const activeBrandName = brands.find((brand) => brand.id === selectedBrand)?.name || 'All brands';
+  const activeReleaseYearLabel = selectedReleaseYear ? `Released in ${selectedReleaseYear}` : 'Any release year';
+  const totalDevices = brands.reduce((sum, brand) => sum + brand.devices, 0);
+  const headlineSpec = useMemo(() => activeDeviceDetail?.quickSpec.slice(0, 4) || [], [activeDeviceDetail]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">
-          Smartphone Comparison Tool
-        </h1>
+    <main className="catalog-shell">
+      <section className="hero-panel">
+        <div className="hero-copy">
+          <span className="eyebrow">Phone decision engine</span>
+          <h1>Find the right phone.</h1>
+          <p>
+            Compare specs, spot the differences, and get smarter recommendations, price comparisons, and buying help
+            in one place.
+          </p>
+          <div className="hero-stats">
+            <div>
+              <strong>{brands.length}</strong>
+              <span>Brands indexed</span>
+            </div>
+            <div>
+              <strong>{totalDevices}</strong>
+              <span>Devices searchable</span>
+            </div>
+            <div>
+              <strong>{selectedDevices.length}/{MAX_COMPARE}</strong>
+              <span>Chosen to compare</span>
+            </div>
+          </div>
+        </div>
 
-        {/* Selected Devices for Comparison */}
-        {selectedDevices.length > 0 && (
-          <div className="mb-8 p-6 bg-white rounded-lg shadow-md">
-            <h2 className="text-2xl font-semibold mb-4">Selected for Comparison ({selectedDevices.length}/4)</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {selectedDevices.map((device) => (
-                <div key={device.id} className="flex flex-col p-4 border rounded-lg">
-                  <img src={device.img} alt={device.name} className="w-full h-32 object-cover rounded mb-3" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-sm mb-2">{device.name}</h3>
-                    <p className="text-xs text-gray-800 mb-3">{device.description.substring(0, 80)}...</p>
-                  </div>
-                  <button
-                    onClick={() => removeFromComparison(device.id)}
-                    className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600"
-                  >
-                    Remove
+        <div className="selection-panel">
+          <div className="panel-header">
+            <div>
+              <p className="panel-kicker">Comparison workspace</p>
+              <h2>Build a side-by-side comparison set</h2>
+            </div>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => setSelectedDevices([])}
+              disabled={selectedDevices.length === 0}
+            >
+              Clear
+            </button>
+          </div>
+
+          <div className="selected-grid">
+            {selectedDevices.length === 0 && (
+              <div className="empty-card">
+                Pick at least two devices to unlock the comparison button.
+              </div>
+            )}
+
+            {selectedDevices.map((device) => (
+              <article key={device.id} className="selected-card">
+                <img src={device.img} alt={device.name} />
+                <div>
+                  <p className="device-brand">{device.brand || 'Catalog device'}</p>
+                  <h3>{device.name}</h3>
+                  <p>{device.description}</p>
+                  <button type="button" className="device-inline-link" onClick={() => void openDeviceModal(device)}>
+                    View full specs
                   </button>
                 </div>
-              ))}
-            </div>
-            {selectedDevices.length >= 2 && (
-              <button 
-                onClick={handleCompareDevices}
-                className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Compare Devices
-              </button>
-            )}
+                <button type="button" className="remove-button" onClick={() => removeFromComparison(device.id)}>
+                  Remove
+                </button>
+              </article>
+            ))}
           </div>
-        )}
 
-        {/* Brand and Device Selection */}
-        <div className="mb-8 p-6 bg-white rounded-lg shadow-md">
-          <h2 className="text-2xl font-semibold mb-6">Add Devices to Compare</h2>
-          
-          {/* Brand Dropdown */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Brand
-            </label>
-            <select
-              value={selectedBrand}
-              onChange={(e) => {
-                setSelectedBrand(e.target.value);
-                setSearchTerm('');
-                setShowDeviceDropdown(false);
-              }}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Choose a brand...</option>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={submitComparison}
+            disabled={selectedDevices.length < 2}
+          >
+            Compare selected devices
+          </button>
+        </div>
+      </section>
+
+      <section className="search-panel">
+        <div className="panel-header search-header">
+          <div>
+            <p className="panel-kicker">Search everything</p>
+            <h2>Find any phone in the catalog</h2>
+          </div>
+          <Link href="/admin" className="ghost-link">
+            Manage imports
+          </Link>
+        </div>
+
+        <div className="search-controls">
+          <label className="search-input">
+            <span>Search by model, phone name, or brand</span>
+            <input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Try Galaxy S24, Pixel, Samsung, iPhone..."
+            />
+          </label>
+
+          <label className="brand-select">
+            <span>Brand filter</span>
+            <select value={selectedBrand} onChange={(event) => setSelectedBrand(event.target.value)}>
+              <option value="">All brands</option>
               {brands.map((brand) => (
                 <option key={brand.id} value={brand.id}>
-                  {brand.name}
+                  {brand.name} ({brand.devices})
                 </option>
               ))}
             </select>
+          </label>
+
+          <label className="brand-select">
+            <span>Release year</span>
+            <select value={selectedReleaseYear} onChange={(event) => setSelectedReleaseYear(event.target.value)}>
+              <option value="">Any year</option>
+              {releaseYears.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="results-meta">
+          <div>
+            <strong>{activeBrandName}</strong>
+            <span>
+              {loadingBrands
+                ? 'Loading filters...'
+                : hasActiveSearch
+                  ? `${activeReleaseYearLabel} · ${results.length} searchable result${results.length === 1 ? '' : 's'}`
+                  : 'Select a brand, release year, or search term to see devices'}
+            </span>
           </div>
+          {loadingResults && <span className="loading-chip">Updating results...</span>}
+        </div>
 
-          {/* Device Search */}
-          {selectedBrand && (
-            <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Search {selectedBrandName} Devices
-              </label>
-              <div className="relative flex items-center gap-2">
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setShowDeviceDropdown(true);
-                  }}
-                  onFocus={() => setShowDeviceDropdown(true)}
-                  placeholder={`Search ${selectedBrandName} devices...`}
-                  className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    // show all devices
-                    setSearchTerm('');
-                    setShowDeviceDropdown(true);
-                  }}
-                  className="px-3 py-2 bg-gray-100 border border-gray-300 rounded text-sm hover:bg-gray-200"
-                >
-                  View all
-                </button>
-                {loading && (
-                  <div className="ml-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-                  </div>
-                )}
-              </div>
-
-              {/* Device Dropdown: show all or filtered devices when dropdown is open */}
-              {showDeviceDropdown && filteredDevices.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {filteredDevices.map((device) => (
-                    <button
-                      key={device.id}
-                      onClick={() => addToComparison(device)}
-                      disabled={selectedDevices.length >= 4 || selectedDevices.some(d => d.id === device.id)}
-                      className={`w-full p-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
-                        selectedDevices.some(d => d.id === device.id)
-                          ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                          : 'cursor-pointer'
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <img src={device.img} alt={device.name} className="w-12 h-12 object-cover rounded mr-3" />
-                        <div>
-                          <div className="font-medium">{device.name}</div>
-                          <div className="text-sm text-gray-800">{device.description.substring(0, 60)}...</div>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {showDeviceDropdown && !loading && filteredDevices.length === 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-gray-800">
-                  No devices found matching "{searchTerm}"
-                </div>
-              )}
+        <div className="results-grid">
+          {!loadingResults && !hasActiveSearch && (
+            <div className="empty-results">
+              <h3>Start with a filter</h3>
+              <p>Select a brand, choose a release year, or search for a model to load matching phones.</p>
             </div>
           )}
 
-          {/* Click outside to close dropdown */}
-          {showDeviceDropdown && (
-            <div
-              className="fixed inset-0 z-0"
-              onClick={() => setShowDeviceDropdown(false)}
-            />
+          {!loadingResults && hasActiveSearch && results.length === 0 && (
+            <div className="empty-results">
+              <h3>No devices matched</h3>
+              <p>Try a broader search, clear one of the filters, or expand the catalog from the admin page.</p>
+            </div>
           )}
-        </div>
 
-        {/* Instructions */}
-        <div className="text-center text-gray-800">
-          <p>Select a brand and search for devices to add up to 4 items for comparison.</p>
+          {results.map((device) => {
+            const isSelected = selectedDevices.some((item) => item.id === device.id);
+            const isDisabled = !isSelected && selectedDevices.length >= MAX_COMPARE;
+
+            return (
+              <article key={device.id} className="device-card">
+                <div className="device-card-top">
+                  <img src={device.img} alt={device.name} />
+                  <div>
+                    <p className="device-brand">{device.brand || 'Catalog device'}</p>
+                    <h3>{device.name}</h3>
+                    <p>{device.description}</p>
+                  </div>
+                </div>
+
+                <div className="device-card-actions">
+                  <span className="result-tag">{isSelected ? 'Selected' : 'Ready'}</span>
+                  <div className="device-card-buttons">
+                    <button type="button" className="ghost-link" onClick={() => void openDeviceModal(device)}>
+                      View specs
+                    </button>
+                    <button
+                      type="button"
+                      className={isSelected ? 'secondary-button' : 'primary-button compact'}
+                      disabled={isDisabled || isSelected}
+                      onClick={() => addToComparison(device)}
+                    >
+                      {isSelected ? 'Added to compare' : 'Add to comparison'}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </div>
-      </div>
-    </div>
+      </section>
+
+      {activeDevice && (
+        <div className="device-modal-backdrop" onClick={closeDeviceModal} role="presentation">
+          <section
+            className="device-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="device-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="device-modal-header">
+              <div>
+                <span className="eyebrow">Device profile</span>
+                <h2 id="device-modal-title">{activeDeviceDetail?.name || activeDevice.name}</h2>
+              </div>
+              <button type="button" className="ghost-button" onClick={closeDeviceModal}>
+                Close
+              </button>
+            </div>
+
+            {deviceModalLoading && (
+              <div className="device-modal-state">
+                <div className="spinner"></div>
+                <p>Loading this device profile...</p>
+              </div>
+            )}
+
+            {!deviceModalLoading && deviceModalError && (
+              <div className="device-modal-state error">
+                <h3>Device unavailable</h3>
+                <p>{deviceModalError}</p>
+              </div>
+            )}
+
+            {!deviceModalLoading && !deviceModalError && activeDeviceDetail && (
+              <div className="device-modal-body">
+                <div className="device-modal-overview">
+                  <div className="device-modal-image">
+                    <img src={activeDeviceDetail.img} alt={activeDeviceDetail.name} />
+                  </div>
+
+                  <div className="quick-spec-list">
+                    {headlineSpec.map((spec) => (
+                      <div key={spec.name} className="quick-spec-row">
+                        <span>{spec.name}</span>
+                        <strong>{spec.value}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="device-modal-spec-grid">
+                  {activeDeviceDetail.detailSpec.map((category) => (
+                    <article key={category.category} className="comparison-section">
+                      <div className="comparison-section-header">
+                        <span className="eyebrow">{category.category}</span>
+                        <h2>{category.category}</h2>
+                      </div>
+
+                      <div className="device-spec-list">
+                        {category.specifications.map((spec) => (
+                          <div key={`${category.category}-${spec.name}`} className="device-spec-row">
+                            <span>{spec.name}</span>
+                            <strong>{spec.value}</strong>
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+    </main>
   );
 }
