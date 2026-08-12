@@ -139,6 +139,11 @@ img {
   padding: clamp(1.2rem, 1rem + 0.8vw, 1.8rem);
 }
 
+.selection-panel {
+  display: flex;
+  flex-direction: column;
+}
+
 .hero-copy {
   position: relative;
   overflow: hidden;
@@ -303,6 +308,15 @@ img {
   margin-top: 1rem;
 }
 
+.selected-grid {
+  align-content: start;
+  min-height: 122px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 0.15rem;
+  scrollbar-gutter: stable;
+}
+
 .selected-card,
 .device-card,
 .empty-card,
@@ -327,9 +341,10 @@ img {
 
 .selected-card {
   display: grid;
-  grid-template-columns: 88px 1fr auto;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
   gap: 1rem;
   align-items: center;
+  min-height: 122px;
 }
 
 .selected-card img,
@@ -344,6 +359,10 @@ img {
 
 .selected-card img {
   height: 88px;
+}
+
+.selected-card > div {
+  min-width: 0;
 }
 
 .device-brand,
@@ -363,6 +382,21 @@ img {
   line-height: 1.2;
   font-weight: 700;
   color: var(--foreground-strong);
+}
+
+.selected-card h3,
+.selected-card > div > p:not(.device-brand) {
+  overflow-wrap: anywhere;
+}
+
+.selected-card > div > p:not(.device-brand) {
+  display: -webkit-box;
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .selected-card p:last-child,

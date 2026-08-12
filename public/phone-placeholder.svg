@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 320" role="img" aria-labelledby="title desc">
+  <title id="title">Phone image placeholder</title>
+  <desc id="desc">A simple smartphone outline used when a device image is unavailable.</desc>
+  <rect width="240" height="320" rx="32" fill="#0d1710"/>
+  <rect x="54" y="22" width="132" height="276" rx="22" fill="#142219" stroke="#7dff9b" stroke-opacity=".35" stroke-width="4"/>
+  <rect x="72" y="52" width="96" height="190" rx="10" fill="#071009"/>
+  <circle cx="120" cy="268" r="12" fill="#7dff9b" fill-opacity=".45"/>
+  <path d="M94 92h52M88 120h64M98 148h44" stroke="#7dff9b" stroke-opacity=".5" stroke-width="8" stroke-linecap="round"/>
+</svg>
