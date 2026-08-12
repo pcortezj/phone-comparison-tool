@@ -37,32 +37,48 @@ export default function AdminPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [importFiles, setImportFiles] = useState<ImportFile[]>([]);
   const [selectedFile, setSelectedFile] = useState('');
+  const [adminToken, setAdminToken] = useState('');
+  const [adminError, setAdminError] = useState<string | null>(null);
   const [stats, setStats] = useState<CatalogStats | null>(null);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setAdminToken(window.sessionStorage.getItem('catalog-admin-token') || '');
     void fetchAdminData();
   }, []);
 
-  const fetchAdminData = async () => {
+  const buildAdminHeaders = (token = adminToken) => (token ? { 'x-admin-token': token } : undefined);
+
+  const fetchAdminData = async (token = adminToken) => {
     try {
-      const response = await fetch('/api/phones/download');
+      const response = await fetch('/api/phones/download', {
+        headers: buildAdminHeaders(token),
+      });
       const data = await response.json();
 
-      if (data.brands) {
+      if (response.ok && data.brands) {
         setBrands(data.brands);
         setImportFiles(data.importFiles || []);
         setStats(data.stats || null);
+        setAdminError(null);
       } else {
+        setAdminError(data.details || data.error || 'Unable to load catalog admin.');
         console.error('Failed to fetch admin data:', data.error);
       }
     } catch (error) {
+      setAdminError(error instanceof Error ? error.message : 'Unable to load catalog admin.');
       console.error('Error fetching admin data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const saveAdminToken = () => {
+    window.sessionStorage.setItem('catalog-admin-token', adminToken);
+    setLoading(true);
+    void fetchAdminData(adminToken);
   };
 
   const runImport = async (body: Record<string, unknown>) => {
@@ -74,13 +90,14 @@ export default function AdminPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...buildAdminHeaders(),
         },
         body: JSON.stringify(body),
       });
 
       const payload = await response.json();
       setResult(payload);
-      await fetchAdminData();
+      await fetchAdminData(adminToken);
     } catch (error) {
       console.error('Import error:', error);
       setResult({
@@ -119,12 +136,23 @@ export default function AdminPage() {
         </div>
 
         <div className="admin-note">
-          <h2>Workflow</h2>
-          <ol>
-            <li>Drop raw JSON arrays into <code>data/imports</code>.</li>
-            <li>Import one file or every available file from this page.</li>
-            <li>The app upserts brands and devices into the local Prisma SQLite database.</li>
-          </ol>
+          <h2>Maintainer access</h2>
+          <p>
+            Public deployments are read-only by default. Set <code>ADMIN_IMPORT_TOKEN</code> on the server and enter it
+            here to review import files or update the catalog.
+          </p>
+          <div className="admin-token-row">
+            <input
+              value={adminToken}
+              onChange={(event) => setAdminToken(event.target.value)}
+              placeholder="Admin import token"
+              type="password"
+            />
+            <button type="button" className="secondary-button" onClick={saveAdminToken}>
+              Unlock admin
+            </button>
+          </div>
+          {adminError && <p className="admin-error">{adminError}</p>}
         </div>
       </section>
 

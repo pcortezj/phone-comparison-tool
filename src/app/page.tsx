@@ -181,10 +181,9 @@ export default function Home() {
       <section className="hero-panel">
         <div className="hero-copy">
           <span className="eyebrow">Phone decision engine</span>
-          <h1>Find the right phone.</h1>
+          <h1>Compare phones. Know the difference.</h1>
           <p>
-            Compare specs, spot the differences, and get smarter recommendations, price comparisons, and buying help
-            in one place.
+            Put the specs side by side and see which phone comes out ahead.
           </p>
           <div className="hero-stats">
             <div>
