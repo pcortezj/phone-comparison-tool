@@ -217,7 +217,8 @@ export async function GET(
         { name: 'Processor', value: displayValue(processor) },
         { name: 'RAM', value: displayValue(ram) },
         { name: 'Storage', value: displayValue(storage) },
-        { name: 'Battery', value: displayValue(batteryCapacity) }
+        { name: 'Battery', value: displayValue(batteryCapacity) },
+        { name: 'Released', value: displayValue(formatDate(phone.releaseDate)) }
       ],
       detailSpec: [
         {

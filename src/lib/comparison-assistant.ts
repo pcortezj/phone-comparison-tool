@@ -13,7 +13,7 @@ const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5-mini';
 const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY || process.env.HF_TOKEN;
 const HUGGINGFACE_BASE_URL = process.env.HUGGINGFACE_BASE_URL || 'https://router.huggingface.co/v1';
-const HUGGINGFACE_MODEL = process.env.HUGGINGFACE_MODEL || 'deepseek-ai/DeepSeek-R1:fastest';
+const HUGGINGFACE_MODEL = process.env.HUGGINGFACE_MODEL || 'Qwen/Qwen2.5-72B-Instruct:fastest';
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
 const ASSISTANT_PROVIDER =
@@ -134,6 +134,7 @@ const buildComparisonPrompt = (question: string, phones: ReturnType<typeof build
     'Answer only using the structured comparison data provided.',
     'Do not invent prices, benchmark scores, availability, or features that are not in the data.',
     'If the data is missing, say so clearly.',
+    'When comparing a specific attribute across phones, first line up each phone\'s exact value for that attribute, then check which value actually wins (e.g. the higher number, or whether values are tied) before writing your conclusion.',
     'Focus on helping a consumer decide between the phones in the comparison.',
     'Keep the answer concise, practical, and easy to scan.',
     '',
@@ -275,6 +276,7 @@ const askOpenAI = async (prompt: string) => {
     body: JSON.stringify({
       model: OPENAI_MODEL,
       input: prompt,
+      max_output_tokens: 1200,
       text: {
         format: {
           type: 'text',
@@ -321,7 +323,7 @@ const askHuggingFace = async (prompt: string) => {
           content: prompt,
         },
       ],
-      max_tokens: 700,
+      max_tokens: 1000,
       temperature: 0.2,
     }),
   });
@@ -360,6 +362,10 @@ const askOllama = async (prompt: string) => {
           content: prompt,
         },
       ],
+      options: {
+        num_predict: 1000,
+        temperature: 0.2,
+      },
     }),
   });
 

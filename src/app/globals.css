@@ -874,10 +874,13 @@ img {
 
 .assistant-answer-card {
   margin-top: 1rem;
-  padding: 1rem 1.1rem;
+  width: 100%;
+  min-width: 0;
+  padding: clamp(1rem, 0.8rem + 0.8vw, 1.35rem);
   border: 1px solid var(--line);
   border-radius: 22px;
   background: linear-gradient(180deg, rgba(14, 25, 16, 0.78), rgba(9, 15, 11, 0.88));
+  overflow: visible;
 }
 
 .assistant-meta {
@@ -889,13 +892,15 @@ img {
   font-family: "SFMono-Regular", "IBM Plex Mono", "Menlo", monospace;
 }
 
-.assistant-answer-card pre {
+.assistant-answer-text {
   margin: 0;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+  word-break: normal;
   color: var(--foreground);
   font-family: inherit;
   line-height: 1.7;
+  max-width: 84ch;
 }
 
 .compare-device-image {
