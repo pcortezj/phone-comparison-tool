@@ -13,6 +13,7 @@
     "db:studio": "prisma studio",
     "import:phones": "node scripts/import-phone-data.mjs",
     "import:phones:latest": "node scripts/import-phone-data.mjs gsmarena-latest-phones.json",
+    "backfill:phones": "python3 scripts/backfill.py",
     "scrape:gsmarena:latest": "python3 scripts/scrape-gsmarena.py --latest-only"
   },
   "dependencies": {
