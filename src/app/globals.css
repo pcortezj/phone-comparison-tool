@@ -193,6 +193,21 @@ img {
   line-height: 1.72;
 }
 
+.brand-mark {
+  display: flex;
+  align-items: baseline;
+  margin: 0 0 0.85rem;
+  font-family: "SFMono-Regular", "IBM Plex Mono", "Menlo", monospace;
+  font-size: clamp(0.95rem, 0.85rem + 0.3vw, 1.15rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--foreground-strong);
+}
+
+.brand-mark-accent {
+  color: var(--accent);
+}
+
 .eyebrow,
 .panel-kicker,
 .admin-kicker {

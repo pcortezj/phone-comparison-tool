@@ -193,7 +193,10 @@ export default function Home() {
     <main className="catalog-shell">
       <section className="hero-panel">
         <div className="hero-copy">
-          <span className="eyebrow">Phone decision engine</span>
+          <div className="brand-mark">
+            difference<span className="brand-mark-accent">AI</span>
+          </div>
+          <span className="eyebrow">The AI-powered smartphone comparison engine.</span>
           <h1>Compare phones. Know the difference.</h1>
           <p>
             Put the specs side by side and see which phone comes out ahead.
