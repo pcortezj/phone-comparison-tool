@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import type { SyntheticEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -30,6 +31,7 @@ interface DeviceDetail {
 }
 
 const MAX_COMPARE = 4;
+const PHONE_IMAGE_FALLBACK = '/phone-placeholder.svg';
 
 export default function Home() {
   const router = useRouter();
@@ -122,11 +124,22 @@ export default function Home() {
   };
 
   const addToComparison = (device: Device) => {
-    if (selectedDevices.some((item) => item.id === device.id) || selectedDevices.length >= MAX_COMPARE) {
+    setSelectedDevices((current) => {
+      if (current.some((item) => item.id === device.id) || current.length >= MAX_COMPARE) {
+        return current;
+      }
+
+      return [...current, device];
+    });
+  };
+
+  const handleDeviceImageError = (event: SyntheticEvent<HTMLImageElement>) => {
+    const image = event.currentTarget;
+    if (image.src.endsWith(PHONE_IMAGE_FALLBACK)) {
       return;
     }
 
-    setSelectedDevices((current) => [...current, device]);
+    image.src = PHONE_IMAGE_FALLBACK;
   };
 
   const removeFromComparison = (deviceId: string) => {
@@ -181,10 +194,9 @@ export default function Home() {
       <section className="hero-panel">
         <div className="hero-copy">
           <span className="eyebrow">Phone decision engine</span>
-          <h1>Find the right phone.</h1>
+          <h1>Compare phones. Know the difference.</h1>
           <p>
-            Compare specs, spot the differences, and get smarter recommendations, price comparisons, and buying help
-            in one place.
+            Put the specs side by side and see which phone comes out ahead.
           </p>
           <div className="hero-stats">
             <div>
@@ -227,7 +239,15 @@ export default function Home() {
 
             {selectedDevices.map((device) => (
               <article key={device.id} className="selected-card">
-                <img src={device.img} alt={device.name} />
+                <img
+                  src={device.img || PHONE_IMAGE_FALLBACK}
+                  alt={device.name}
+                  width={88}
+                  height={88}
+                  loading="lazy"
+                  decoding="async"
+                  onError={handleDeviceImageError}
+                />
                 <div>
                   <p className="device-brand">{device.brand || 'Catalog device'}</p>
                   <h3>{device.name}</h3>
@@ -336,7 +356,15 @@ export default function Home() {
             return (
               <article key={device.id} className="device-card">
                 <div className="device-card-top">
-                  <img src={device.img} alt={device.name} />
+                  <img
+                    src={device.img || PHONE_IMAGE_FALLBACK}
+                    alt={device.name}
+                    width={104}
+                    height={104}
+                    loading="lazy"
+                    decoding="async"
+                    onError={handleDeviceImageError}
+                  />
                   <div>
                     <p className="device-brand">{device.brand || 'Catalog device'}</p>
                     <h3>{device.name}</h3>
@@ -403,7 +431,15 @@ export default function Home() {
               <div className="device-modal-body">
                 <div className="device-modal-overview">
                   <div className="device-modal-image">
-                    <img src={activeDeviceDetail.img} alt={activeDeviceDetail.name} />
+                    <img
+                      src={activeDeviceDetail.img || PHONE_IMAGE_FALLBACK}
+                      alt={activeDeviceDetail.name}
+                      width={240}
+                      height={320}
+                      loading="lazy"
+                      decoding="async"
+                      onError={handleDeviceImageError}
+                    />
                   </div>
 
                   <div className="quick-spec-list">

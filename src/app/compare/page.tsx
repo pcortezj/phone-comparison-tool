@@ -237,7 +237,7 @@ export default function ComparePage() {
         {assistantAnswer && (
           <div className="assistant-answer-card">
             {assistantMeta && <p className="assistant-meta">{assistantMeta}</p>}
-            <pre>{assistantAnswer}</pre>
+            <div className="assistant-answer-text">{assistantAnswer}</div>
           </div>
         )}
       </section>

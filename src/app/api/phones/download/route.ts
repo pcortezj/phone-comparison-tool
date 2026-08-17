@@ -1,7 +1,43 @@
 import { NextResponse } from 'next/server';
 import { getBrands, getCatalogStats, importPhoneData, listImportFiles } from '@/lib/phone-catalog';
 
+const ADMIN_IMPORT_TOKEN = process.env.ADMIN_IMPORT_TOKEN;
+const isProduction = process.env.NODE_ENV === 'production';
+
+const getAdminAccessError = (request: Request) => {
+  if (!ADMIN_IMPORT_TOKEN) {
+    return isProduction
+      ? NextResponse.json(
+          {
+            error: 'Admin imports are disabled',
+            details: 'Set ADMIN_IMPORT_TOKEN on the server to enable protected catalog maintenance.',
+          },
+          { status: 503 }
+        )
+      : null;
+  }
+
+  const token = request.headers.get('x-admin-token') || request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+
+  if (token !== ADMIN_IMPORT_TOKEN) {
+    return NextResponse.json(
+      {
+        error: 'Unauthorized',
+        details: 'A valid admin token is required to manage catalog imports.',
+      },
+      { status: 401 }
+    );
+  }
+
+  return null;
+};
+
 export async function POST(request: Request) {
+  const adminAccessError = getAdminAccessError(request);
+  if (adminAccessError) {
+    return adminAccessError;
+  }
+
   try {
     const { fileName, importAll } = await request.json();
     const report = await importPhoneData(importAll ? undefined : fileName);
@@ -26,7 +62,12 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const adminAccessError = getAdminAccessError(request);
+  if (adminAccessError) {
+    return adminAccessError;
+  }
+
   try {
     const [brands, importFiles, stats] = await Promise.all([
       getBrands(),
