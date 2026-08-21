@@ -11,6 +11,8 @@ A local-first smartphone comparison app built with Next.js, Prisma, and SQLite. 
 - Import JSON datasets through CLI scripts
 - Scrape curated GSMArena listings into import-ready JSON
 - Ask a comparison assistant questions about selected phones
+- Backfill specific missing models from GSMArena on demand
+- Rate-limit and validate AI assistant requests to guard against abuse
 - Keep raw import files and local database files out of Git by default
 
 ## Tech Stack
@@ -128,6 +130,20 @@ python3 scripts/export-gsmarena-db.py
 
 The output is written to `data/imports/gsmarena-smartphones-db.json`.
 
+### Backfill Missing Models
+
+If specific phones are missing from the catalog, list them (one per line) in `data/backfill-models.txt`, then scrape and import just those models:
+
+```bash
+npm run backfill:phones
+```
+
+This scrapes only the listed models into `data/imports/gsmarena-backfill-phones.json` and imports records that aren't already in the database. Pass `--scrape-only` to skip the import step:
+
+```bash
+python3 scripts/backfill.py --scrape-only
+```
+
 ## Comparison Assistant
 
 The comparison page can answer natural-language questions using the selected phones' normalized catalog data. It supports OpenAI, Hugging Face Inference Providers, or a local Ollama server. If no provider is available, it returns a grounded fallback summary from the stored specs.
@@ -159,6 +175,17 @@ OLLAMA_MODEL=qwen2.5:7b
 
 Provider selection is controlled with `COMPARE_ASSISTANT_PROVIDER`. Supported values are `openai`, `huggingface`, and `ollama`.
 
+### Abuse Protection
+
+`/api/compare/chat` has lightweight, in-process safeguards suited to a single-instance deployment:
+
+- **Rate limiting** — 10 requests per minute per IP, returns `429` with a `Retry-After` header once exceeded.
+- **Request timeout** — each provider call (OpenAI, Hugging Face, Ollama) aborts after 20 seconds so a stalled upstream can't tie up the request.
+- **Input limits** — questions are capped at 2000 characters and comparisons at 6 devices.
+- **Response caching** — identical questions for the same set of devices are served from a 5-minute in-memory cache instead of re-hitting the provider.
+
+This is in-memory state (see `src/lib/rate-limit.ts`), so it resets on restart and only works correctly behind a single app instance. Moving to multiple instances or serverless would require a shared store instead.
+
 ## Scripts
 
 ```bash
@@ -171,6 +198,7 @@ npm run db:push             # Push Prisma schema to SQLite
 npm run db:studio           # Open Prisma Studio
 npm run import:phones       # Import all JSON files in data/imports
 npm run import:phones:latest # Import gsmarena-latest-phones.json
+npm run backfill:phones     # Scrape and import models listed in data/backfill-models.txt
 npm run scrape:gsmarena:latest # Scrape latest curated GSMArena targets
 ```
 
@@ -185,14 +213,19 @@ npm run scrape:gsmarena:latest # Scrape latest curated GSMArena targets
 ## Project Layout
 
 ```text
-data/imports/                  JSON import drop zone
-prisma/schema.prisma           Prisma data model
-scripts/import-phone-data.mjs  CLI importer
-scripts/scrape-gsmarena.py     GSMArena scraper
-scripts/init-db.sql            SQLite bootstrap schema
-src/app/                       Next.js app routes and UI
-src/lib/phone-catalog.ts       Catalog queries
-src/lib/phone-normalization.js Phone payload normalization
+data/imports/                     JSON import drop zone
+data/backfill-models.txt          Model list for targeted backfills
+prisma/schema.prisma              Prisma data model
+scripts/import-phone-data.mjs     CLI importer
+scripts/import-phone-backfill.mjs Imports only missing records
+scripts/backfill.py               Scrapes + imports targeted models
+scripts/scrape-gsmarena.py        GSMArena scraper
+scripts/init-db.sql               SQLite bootstrap schema
+src/app/                          Next.js app routes and UI
+src/lib/phone-catalog.ts          Catalog queries
+src/lib/phone-normalization.js    Phone payload normalization
+src/lib/comparison-assistant.ts   AI provider calls, timeouts, response cache
+src/lib/rate-limit.ts             In-memory per-IP rate limiter
 ```
 
 ## Data and Git
