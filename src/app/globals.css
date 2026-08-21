@@ -82,7 +82,6 @@ img {
 
 .catalog-shell,
 .compare-shell,
-.admin-shell,
 .device-shell {
   width: min(1240px, calc(100% - 2rem));
   margin: 0 auto;
@@ -95,10 +94,7 @@ img {
 .compare-summary-grid,
 .compare-detail-sections,
 .device-hero,
-.device-spec-grid,
-.admin-hero,
-.admin-grid,
-.admin-section {
+.device-spec-grid {
   position: relative;
   z-index: 1;
 }
@@ -117,10 +113,7 @@ img {
 .compare-device-card,
 .comparison-section,
 .compare-status-card,
-.compare-hero,
-.admin-hero,
-.admin-panel,
-.admin-section {
+.compare-hero {
   background: linear-gradient(180deg, rgba(12, 22, 14, 0.9), rgba(7, 13, 9, 0.82));
   backdrop-filter: blur(18px);
   border: 1px solid var(--line);
@@ -133,9 +126,7 @@ img {
 .search-panel,
 .comparison-section,
 .compare-device-card,
-.compare-status-card,
-.admin-panel,
-.admin-section {
+.compare-status-card {
   padding: clamp(1.2rem, 1rem + 0.8vw, 1.8rem);
 }
 
@@ -150,7 +141,6 @@ img {
 }
 
 .hero-copy::after,
-.admin-hero::after,
 .compare-hero::after {
   content: "";
   position: absolute;
@@ -160,8 +150,7 @@ img {
   pointer-events: none;
 }
 
-.hero-copy h1,
-.admin-hero h1 {
+.hero-copy h1 {
   margin: 0;
   font-size: clamp(2rem, 1.2rem + 3.1vw, 4rem);
   line-height: 0.98;
@@ -184,8 +173,7 @@ img {
 }
 
 .hero-copy p,
-.compare-hero p,
-.admin-hero p {
+.compare-hero p {
   margin: 1rem 0 0;
   max-width: 60ch;
   color: var(--muted);
@@ -209,8 +197,7 @@ img {
 }
 
 .eyebrow,
-.panel-kicker,
-.admin-kicker {
+.panel-kicker {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
@@ -223,8 +210,7 @@ img {
 }
 
 .eyebrow::before,
-.panel-kicker::before,
-.admin-kicker::before {
+.panel-kicker::before {
   content: "";
   width: 0.8rem;
   height: 1px;
@@ -236,12 +222,7 @@ img {
 .selected-grid,
 .results-grid,
 .compare-summary-grid,
-.compare-detail-sections,
-.admin-stats,
-.admin-grid,
-.admin-file-grid,
-.admin-brand-grid,
-.admin-result-files {
+.compare-detail-sections {
   display: grid;
   gap: 1rem;
 }
@@ -253,9 +234,7 @@ img {
 
 .hero-stats div,
 .results-meta,
-.compare-hero,
-.admin-hero,
-.admin-note {
+.compare-hero {
   border: 1px solid var(--line);
   border-radius: 22px;
   background: linear-gradient(180deg, rgba(14, 25, 16, 0.78), rgba(9, 15, 11, 0.88));
@@ -265,8 +244,7 @@ img {
   padding: 1rem;
 }
 
-.hero-stats strong,
-.admin-stat strong {
+.hero-stats strong {
   display: block;
   font-size: clamp(1.7rem, 1.4rem + 0.9vw, 2.4rem);
   line-height: 1;
@@ -274,8 +252,7 @@ img {
   color: var(--foreground-strong);
 }
 
-.hero-stats span,
-.admin-stat span {
+.hero-stats span {
   display: block;
   margin-top: 0.35rem;
   color: var(--muted);
@@ -285,9 +262,7 @@ img {
 .panel-header,
 .results-meta,
 .compare-hero,
-.compare-actions,
-.admin-panel-header,
-.admin-action-row {
+.compare-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -296,9 +271,7 @@ img {
 
 .panel-header h2,
 .comparison-section h2,
-.compare-device-card h2,
-.admin-panel h2,
-.admin-section h2 {
+.compare-device-card h2 {
   margin: 0.25rem 0 0;
   font-size: clamp(1.2rem, 0.95rem + 0.55vw, 1.55rem);
   line-height: 1.15;
@@ -308,18 +281,13 @@ img {
 }
 
 .panel-header p,
-.admin-panel-header p,
-.comparison-section-header p,
-.admin-section p {
+.comparison-section-header p {
   margin: 0;
 }
 
 .selected-grid,
 .results-grid,
-.compare-detail-sections,
-.admin-grid,
-.admin-file-grid,
-.admin-brand-grid {
+.compare-detail-sections {
   margin-top: 1rem;
 }
 
@@ -335,10 +303,7 @@ img {
 .selected-card,
 .device-card,
 .empty-card,
-.empty-results,
-.admin-file-card,
-.admin-brand-card,
-.admin-result-card {
+.empty-results {
   border: 1px solid var(--line);
   border-radius: 24px;
   background: linear-gradient(180deg, rgba(15, 27, 17, 0.96), rgba(10, 17, 12, 0.98));
@@ -346,9 +311,6 @@ img {
 
 .selected-card,
 .device-card,
-.admin-file-card,
-.admin-brand-card,
-.admin-result-card,
 .empty-card,
 .empty-results {
   padding: 1rem;
@@ -380,8 +342,7 @@ img {
   min-width: 0;
 }
 
-.device-brand,
-.admin-micro {
+.device-brand {
   color: var(--accent);
   font-size: 0.76rem;
   letter-spacing: 0.14em;
@@ -416,11 +377,7 @@ img {
 
 .selected-card p:last-child,
 .device-card p:last-child,
-.empty-results p,
-.admin-file-card p,
-.admin-brand-card p,
-.admin-panel p,
-.admin-result-card p {
+.empty-results p {
   color: var(--muted);
   line-height: 1.65;
 }
@@ -516,22 +473,19 @@ img {
 }
 
 .search-input,
-.brand-select,
-.admin-field {
+.brand-select {
   display: grid;
   gap: 0.55rem;
 }
 
 .search-input span,
-.brand-select span,
-.admin-field span {
+.brand-select span {
   color: var(--muted-strong);
   font-size: 0.92rem;
 }
 
 .search-input input,
-.brand-select select,
-.admin-field select {
+.brand-select select {
   width: 100%;
   min-height: 52px;
   border-radius: 18px;
@@ -548,8 +502,7 @@ img {
 }
 
 .search-input input:focus,
-.brand-select select:focus,
-.admin-field select:focus {
+.brand-select select:focus {
   border-color: var(--accent-strong);
   box-shadow: 0 0 0 4px rgba(76, 255, 138, 0.12);
 }
@@ -577,8 +530,7 @@ img {
 }
 
 .loading-chip,
-.result-tag,
-.admin-tag {
+.result-tag {
   border-radius: 999px;
   background: rgba(125, 255, 155, 0.12);
   color: var(--accent);
@@ -644,8 +596,7 @@ img {
   padding-top: clamp(1.25rem, 2vw, 2.25rem);
 }
 
-.compare-hero,
-.admin-hero {
+.compare-hero {
   padding: clamp(1.3rem, 1rem + 0.8vw, 1.8rem);
   margin-bottom: 1rem;
 }
@@ -992,15 +943,7 @@ img {
   text-align: center;
 }
 
-.admin-stats,
-.admin-grid,
-.admin-result-card,
-.admin-section {
-  margin-top: 1rem;
-}
-
-.compare-status-card.error,
-.admin-result-card.error {
+.compare-status-card.error {
   border-color: rgba(255, 124, 143, 0.26);
 }
 
@@ -1019,104 +962,6 @@ img {
   margin: 1rem auto 0;
 }
 
-.admin-shell {
-  padding-top: clamp(1rem, 2vw, 1.75rem);
-}
-
-.admin-hero {
-  display: grid;
-  gap: 1.1rem;
-}
-
-.admin-hero-copy {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.admin-note {
-  padding: 1rem 1.1rem;
-}
-
-.admin-note ol {
-  margin: 0.75rem 0 0;
-  padding-left: 1.1rem;
-  color: var(--muted);
-}
-
-.admin-note code,
-.admin-panel code,
-.admin-section code {
-  padding: 0.14rem 0.4rem;
-  border-radius: 8px;
-  background: rgba(125, 255, 155, 0.08);
-  color: var(--foreground-strong);
-  font-family: "SFMono-Regular", "IBM Plex Mono", "Menlo", monospace;
-  font-size: 0.92em;
-}
-
-.admin-stats {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.admin-stat {
-  padding: 1rem;
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  background: linear-gradient(180deg, rgba(14, 24, 16, 0.78), rgba(8, 14, 10, 0.9));
-}
-
-.admin-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.admin-panel {
-  display: grid;
-  gap: 1rem;
-}
-
-.admin-panel-body {
-  display: grid;
-  gap: 1rem;
-}
-
-.admin-button-stack {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.admin-result-card.success {
-  border-color: rgba(125, 255, 155, 0.28);
-}
-
-.admin-result-files {
-  margin-top: 0.9rem;
-}
-
-.admin-result-files p {
-  margin: 0;
-}
-
-.admin-file-grid {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
-
-.admin-brand-grid {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-}
-
-.admin-file-card h3,
-.admin-brand-card h3 {
-  margin: 0.2rem 0 0.35rem;
-  font-size: 1rem;
-  color: var(--foreground-strong);
-}
-
-.admin-file-card p,
-.admin-brand-card p {
-  margin: 0.18rem 0 0;
-}
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -1125,7 +970,6 @@ img {
 
 @media (max-width: 1100px) {
   .hero-panel,
-  .admin-grid,
   .device-hero,
   .device-spec-grid,
   .device-modal-overview,
@@ -1141,7 +985,6 @@ img {
 @media (max-width: 780px) {
   .catalog-shell,
   .compare-shell,
-  .admin-shell,
   .device-shell {
     width: min(100% - 1rem, 100%);
     padding-top: 1rem;
@@ -1155,17 +998,13 @@ img {
   .compare-status-card,
   .compare-hero,
   .device-hero,
-  .device-spotlight-card,
-  .admin-hero,
-  .admin-panel,
-  .admin-section {
+  .device-spotlight-card {
     border-radius: 22px;
   }
 
   .hero-stats,
   .search-controls,
-  .results-grid,
-  .admin-stats {
+  .results-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1190,9 +1029,7 @@ img {
   .panel-header,
   .results-meta,
   .compare-hero,
-  .device-spec-row,
-  .admin-panel-header,
-  .admin-action-row {
+  .device-spec-row {
     flex-direction: column;
     align-items: flex-start;
   }

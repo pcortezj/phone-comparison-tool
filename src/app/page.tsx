@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { SyntheticEvent } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 interface Brand {
@@ -283,9 +282,6 @@ export default function Home() {
             <p className="panel-kicker">Search everything</p>
             <h2>Find any phone in the catalog</h2>
           </div>
-          <Link href="/admin" className="ghost-link">
-            Manage imports
-          </Link>
         </div>
 
         <div className="search-controls">
@@ -348,7 +344,7 @@ export default function Home() {
           {!loadingResults && hasActiveSearch && results.length === 0 && (
             <div className="empty-results">
               <h3>No devices matched</h3>
-              <p>Try a broader search, clear one of the filters, or expand the catalog from the admin page.</p>
+              <p>Try a broader search or clear one of the filters.</p>
             </div>
           )}
 
