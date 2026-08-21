@@ -20,7 +20,51 @@ const ASSISTANT_PROVIDER =
   process.env.COMPARE_ASSISTANT_PROVIDER ||
   (OPENAI_API_KEY ? 'openai' : HUGGINGFACE_API_KEY ? 'huggingface' : 'ollama');
 
+const PROVIDER_REQUEST_TIMEOUT_MS = 20_000;
+
+const RESPONSE_CACHE_TTL_MS = 5 * 60_000;
+const RESPONSE_CACHE_MAX_ENTRIES = 200;
+
 type AssistantSource = 'openai' | 'huggingface' | 'ollama' | 'fallback';
+
+type AssistantResponse = {
+  answer: string;
+  source: AssistantSource;
+  model: string;
+  phones: ReturnType<typeof buildPhoneSummary>[];
+};
+
+const responseCache = new Map<string, { value: AssistantResponse; expiresAt: number }>();
+
+const getCacheKey = (question: string, deviceIds: string[]) =>
+  `${[...deviceIds].sort().join(',')}::${question.trim().toLowerCase()}`;
+
+const setCached = (key: string, value: AssistantResponse) => {
+  if (responseCache.size >= RESPONSE_CACHE_MAX_ENTRIES) {
+    const oldestKey = responseCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      responseCache.delete(oldestKey);
+    }
+  }
+
+  responseCache.set(key, { value, expiresAt: Date.now() + RESPONSE_CACHE_TTL_MS });
+};
+
+const fetchWithTimeout = async (url: string, options: RequestInit, timeoutMs: number, label: string) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`${label} request timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
 
 const formatNumber = (value: number | null | undefined, suffix?: string) => {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -267,23 +311,28 @@ const askOpenAI = async (prompt: string) => {
     throw new Error('OPENAI_API_KEY is not set');
   }
 
-  const response = await fetch(`${OPENAI_BASE_URL}/responses`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      input: prompt,
-      max_output_tokens: 1200,
-      text: {
-        format: {
-          type: 'text',
-        },
+  const response = await fetchWithTimeout(
+    `${OPENAI_BASE_URL}/responses`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
       },
-    }),
-  });
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        input: prompt,
+        max_output_tokens: 1200,
+        text: {
+          format: {
+            type: 'text',
+          },
+        },
+      }),
+    },
+    PROVIDER_REQUEST_TIMEOUT_MS,
+    'OpenAI'
+  );
 
   if (!response.ok) {
     const details = await response.text();
@@ -309,24 +358,29 @@ const askHuggingFace = async (prompt: string) => {
     throw new Error('HF_TOKEN or HUGGINGFACE_API_KEY is not set');
   }
 
-  const response = await fetch(`${HUGGINGFACE_BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${HUGGINGFACE_API_KEY}`,
+  const response = await fetchWithTimeout(
+    `${HUGGINGFACE_BASE_URL}/chat/completions`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${HUGGINGFACE_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: HUGGINGFACE_MODEL,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        max_tokens: 1000,
+        temperature: 0.2,
+      }),
     },
-    body: JSON.stringify({
-      model: HUGGINGFACE_MODEL,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      max_tokens: 1000,
-      temperature: 0.2,
-    }),
-  });
+    PROVIDER_REQUEST_TIMEOUT_MS,
+    'Hugging Face'
+  );
 
   if (!response.ok) {
     const details = await response.text();
@@ -348,26 +402,31 @@ const askHuggingFace = async (prompt: string) => {
 };
 
 const askOllama = async (prompt: string) => {
-  const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      stream: false,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      options: {
-        num_predict: 1000,
-        temperature: 0.2,
+  const response = await fetchWithTimeout(
+    `${OLLAMA_BASE_URL}/api/chat`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-    }),
-  });
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        stream: false,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        options: {
+          num_predict: 1000,
+          temperature: 0.2,
+        },
+      }),
+    },
+    PROVIDER_REQUEST_TIMEOUT_MS,
+    'Ollama'
+  );
 
   if (!response.ok) {
     throw new Error(`Ollama request failed with status ${response.status}`);
@@ -414,7 +473,13 @@ export const buildComparisonAssistantContext = async (deviceIds: string[]) => {
   return phones;
 };
 
-export const askComparisonAssistant = async (question: string, deviceIds: string[]) => {
+export const askComparisonAssistant = async (question: string, deviceIds: string[]): Promise<AssistantResponse> => {
+  const cacheKey = getCacheKey(question, deviceIds);
+  const cached = responseCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+
   const phones = await buildComparisonAssistantContext(deviceIds);
 
   if (phones.length < 2) {
@@ -437,14 +502,18 @@ export const askComparisonAssistant = async (question: string, deviceIds: string
             ? await askHuggingFace(prompt)
             : await askOllama(prompt);
 
-      return {
+      const response: AssistantResponse = {
         answer: result.answer,
         source: result.source,
         model: result.model,
         phones,
       };
+
+      setCached(cacheKey, response);
+      return response;
     } catch (error) {
       const message = error instanceof Error ? error.message : `Unknown ${provider} error`;
+      console.warn(`[comparison-assistant] ${provider} provider failed: ${message}`);
       providerErrors.push(`${provider}: ${message}`);
     }
   }

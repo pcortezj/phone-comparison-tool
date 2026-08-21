@@ -8,7 +8,7 @@ A local-first smartphone comparison app built with Next.js, Prisma, and SQLite. 
 - Filter results by brand and release year
 - Compare up to four phones side by side
 - View normalized device detail pages
-- Import JSON datasets through scripts or the admin page
+- Import JSON datasets through CLI scripts
 - Scrape curated GSMArena listings into import-ready JSON
 - Ask a comparison assistant questions about selected phones
 - Keep raw import files and local database files out of Git by default
@@ -108,15 +108,6 @@ Open `http://localhost:3000`.
 3. Add two to four phones to the comparison workspace.
 4. Open the comparison page to review normalized specs and ask follow-up questions.
 
-### Use the Admin Page
-
-Visit `/admin` to:
-
-- See catalog totals
-- Inspect import files in `data/imports`
-- Import one file or all available files
-- Confirm recent import results
-
 ### Scrape Latest GSMArena Data
 
 The scraper writes JSON files into `data/imports`.
@@ -189,8 +180,6 @@ npm run scrape:gsmarena:latest # Scrape latest curated GSMArena targets
 - `GET /api/phones/search?q=&brand=&year=` searches catalog devices
 - `GET /api/phones/[brand]` returns devices for a brand
 - `GET /api/phones/device/[id]` returns normalized device details
-- `GET /api/phones/download` returns admin import metadata
-- `POST /api/phones/download` imports one or all local JSON files
 - `POST /api/compare/chat` answers comparison assistant prompts
 
 ## Project Layout
@@ -202,7 +191,7 @@ scripts/import-phone-data.mjs  CLI importer
 scripts/scrape-gsmarena.py     GSMArena scraper
 scripts/init-db.sql            SQLite bootstrap schema
 src/app/                       Next.js app routes and UI
-src/lib/phone-catalog.ts       Catalog queries and import helpers
+src/lib/phone-catalog.ts       Catalog queries
 src/lib/phone-normalization.js Phone payload normalization
 ```
 
