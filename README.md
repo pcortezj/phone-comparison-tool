@@ -1,19 +1,18 @@
-# Phone Comparison Tool
+# DifferenceAI
 
-A smartphone comparison app built with Next.js, Prisma, and PostgreSQL, deployed on Vercel. It replaces the earlier RapidAPI workflow with a self-owned phone catalog that can be populated from GSMArena-style JSON imports, browsed by brand and release year, and compared side by side.
+DifferenceAI is a smartphone comparison app built with Next.js, Prisma, and PostgreSQL, deployed on Vercel. It hosts a self-owned catalog of thousands of devices with normalized specifications, and pairs it with an AI assistant that answers natural-language questions about the phones you're comparing.
+
+> **Note on data:** this repository contains the application code and a small sample dataset for local development. The full production phone catalog is a maintained product asset and is not included here - see [Working With Phone Data](#working-with-phone-data).
 
 ## Features
 
-- Search phones from a Postgres-backed catalog
+- Search a Postgres-backed catalog of thousands of smartphone specification records
 - Filter results by brand and release year
-- Compare up to four phones side by side
-- View normalized device detail pages
-- Import JSON datasets through CLI scripts
-- Scrape curated GSMArena listings into import-ready JSON
-- Ask a comparison assistant questions about selected phones
-- Backfill specific missing models from GSMArena on demand
-- Rate-limit and validate AI assistant requests to guard against abuse
-- Keep raw import files and local database files out of Git by default
+- Compare up to four phones side by side, with normalized spec-by-spec breakdowns
+- View detailed per-device spec pages
+- Ask an AI assistant contextual questions about the phones you're comparing (OpenAI, Hugging Face, or a local model)
+- Rate-limited, timeout-protected, and input-validated AI endpoint to guard against abuse
+- CLI tooling for importing, backfilling, and migrating phone data (see [Working With Phone Data](#working-with-phone-data))
 
 ## Tech Stack
 
@@ -55,15 +54,13 @@ npx prisma migrate deploy
 
 ### 3. Load Phone Data
 
-If you're starting fresh with no existing dataset, skip to [Import Data](#4-add-import-data) below and run `npm run import:phones` after adding JSON files.
-
-If you're migrating an existing SQLite dataset (e.g. from before this app moved to Postgres), see [Preserving Existing Phone Data](#preserving-existing-phone-data).
+This repository ships with a small sample dataset (`data/imports/sample-phones.json`, a couple of well-known devices) so you can run the app locally without needing the production catalog. See [Working With Phone Data](#working-with-phone-data) for the full picture, including how to migrate an existing dataset.
 
 ### 4. Add Import Data
 
-Place JSON files in `data/imports/`. Import files are intentionally ignored by Git, while `data/imports/.gitkeep` preserves the directory.
+Place JSON files in `data/imports/`. Files other than the bundled sample are intentionally ignored by Git (see [Working With Phone Data](#working-with-phone-data)).
 
-Each JSON file should contain an array of phone records. The importer accepts flexible payloads, including GSMArena-style records with `specifications`:
+Each JSON file should contain an array of phone records. The importer accepts flexible payloads, including nested `specifications` arrays:
 
 ```json
 [
@@ -88,7 +85,7 @@ Each JSON file should contain an array of phone records. The importer accepts fl
 
 ### 5. Import Phones
 
-Import every `.json` file in `data/imports`:
+Import every `.json` file in `data/imports` (including the bundled sample):
 
 ```bash
 npm run import:phones
@@ -97,7 +94,7 @@ npm run import:phones
 Import one file:
 
 ```bash
-node scripts/import-phone-data.mjs gsmarena-latest-phones.json
+node scripts/import-phone-data.mjs sample-phones.json
 ```
 
 ### 6. Run the App
@@ -117,46 +114,20 @@ Open `http://localhost:3000`.
 3. Add two to four phones to the comparison workspace.
 4. Open the comparison page to review normalized specs and ask follow-up questions.
 
-### Scrape Latest GSMArena Data
+## Working With Phone Data
 
-The scraper writes JSON files into `data/imports`.
+**The production phone catalog is not part of this repository.** It's a maintained product asset, populated and updated independently, and loaded into the production Postgres database separately from the application deploy. What's included here is:
 
-```bash
-npm run scrape:gsmarena:latest
-```
+- A tiny sample dataset (`data/imports/sample-phones.json`) so the app runs locally out of the box.
+- The importer (`scripts/import-phone-data.mjs`), which accepts general smartphone specification/reference data as flexible JSON (see the format in [Add Import Data](#4-add-import-data)) and upserts it into Postgres by brand/device slug.
+- Data-ingestion tooling for maintainers - `scripts/scrape-gsmarena.py`, `scripts/backfill.py`, and `scripts/export-gsmarena-db.py` - for scraping, targeted backfills, and importing from a local source database. These are internal tooling, not required to run or evaluate the app, so usage details are kept out of the public README; see the scripts themselves for their CLI options.
 
-The script includes curated brand and phone targets in [scripts/scrape-gsmarena.py](scripts/scrape-gsmarena.py). Be respectful of source sites and rate limits when scraping.
+### Migrating an Existing SQLite Dataset to Postgres
 
-### Export From a Local GSMArena SQLite Dump
-
-If you have a compatible GSMArena SQLite database at `/tmp/gsmarena2api/gsmarena.db`, export smartphone records into import format:
+If you're bringing over phone data from a SQLite-backed instance of this app (e.g. before it moved to Postgres), dump directly from that database rather than re-running the JSON importers - re-importing from source files isn't guaranteed to reproduce a dataset that's since been backfilled or hand-corrected:
 
 ```bash
-python3 scripts/export-gsmarena-db.py
-```
-
-The output is written to `data/imports/gsmarena-smartphones-db.json`.
-
-### Backfill Missing Models
-
-If specific phones are missing from the catalog, list them (one per line) in `data/backfill-models.txt`, then scrape and import just those models:
-
-```bash
-npm run backfill:phones
-```
-
-This scrapes only the listed models into `data/imports/gsmarena-backfill-phones.json` and imports records that aren't already in the database. Pass `--scrape-only` to skip the import step:
-
-```bash
-python3 scripts/backfill.py --scrape-only
-```
-
-### Preserving Existing Phone Data
-
-If you already have phone data in a local SQLite database from before this app moved to Postgres, don't just re-run the JSON importers against a fresh database — scraped source files can drift from what's actually stored (later backfills, manual fixes, upstream site changes), so re-importing from scratch isn't guaranteed to reproduce today's dataset. Instead, dump directly from the existing SQLite database and load that dump into Postgres:
-
-```bash
-# 1. While prisma/schema.prisma still points at your old SQLite file,
+# 1. While prisma/schema.prisma still points at the old SQLite file,
 #    dump every brand and device row to JSON:
 node scripts/export-sqlite-catalog.mjs
 # -> writes data/exports/catalog-dump.json (gitignored; keep a backup of it)
@@ -168,7 +139,7 @@ npx prisma migrate deploy
 npm run db:import:catalog
 ```
 
-This preserves every stored field exactly as it was (no re-normalization), and is the same path used to seed a fresh production database - see [Deploying to Vercel](#deploying-to-vercel).
+This preserves every stored field exactly as it was (no re-normalization). It's the same mechanism used to seed a production database - see [Deploying to Vercel](#deploying-to-vercel).
 
 ## Comparison Assistant
 
@@ -242,7 +213,7 @@ npm run scrape:gsmarena:latest # Scrape latest curated GSMArena targets
 ## Project Layout
 
 ```text
-data/imports/                     JSON import drop zone
+data/imports/                     JSON import drop zone (gitignored, except sample-phones.json)
 data/exports/                     SQLite -> Postgres migration dumps (gitignored)
 data/backfill-models.txt          Model list for targeted backfills
 prisma/schema.prisma              Prisma data model (PostgreSQL)
@@ -265,13 +236,13 @@ src/lib/rate-limit.ts             In-memory per-IP rate limiter
 
 The repository ignores:
 
-- `.env*`
-- `data/imports/*.json`
+- `.env*` (except `.env.example`, which contains placeholders only)
+- `data/imports/*.json` (except the bundled `sample-phones.json`)
 - `data/exports/`
-- `prisma/dev.db` / `prisma/dev.db-journal` (legacy local SQLite, unused now that the app runs on Postgres)
+- any `*.sqlite`/`*.sqlite3`/`*.db` file, database backups, and generated dumps
 - build artifacts such as `.next/`
 
-This keeps local API keys, scraped datasets, and database files out of source control. Because `data/exports/catalog-dump.json` (the Postgres migration snapshot) is also gitignored, keep a copy of it somewhere safe after generating it - it's the only portable copy of your dataset outside the databases themselves.
+This keeps local API keys, the production phone dataset, and database files out of source control - **the full catalog is never committed to this repository**, in any commit, past or present. Because `data/exports/catalog-dump.json` (the Postgres migration snapshot, when generated) is also gitignored, keep a copy of it somewhere safe after generating it - it's the only portable copy of your dataset outside the databases themselves.
 
 ## Deploying to Vercel
 
@@ -326,7 +297,7 @@ This applies `prisma/migrations/` to create the `Brand` and `Device` tables. It'
 
 ### 7. Import the existing phone dataset
 
-If you haven't already generated `data/exports/catalog-dump.json` locally (see [Preserving Existing Phone Data](#preserving-existing-phone-data)), do that first against your existing SQLite database. Then, from your own machine, load it into production:
+If you haven't already generated `data/exports/catalog-dump.json` locally (see [Migrating an Existing SQLite Dataset to Postgres](#migrating-an-existing-sqlite-dataset-to-postgres)), do that first against your existing SQLite database. Then, from your own machine, load it into production:
 
 ```bash
 DATABASE_URL="<production-database-url>" npm run db:import:catalog

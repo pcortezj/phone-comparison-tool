@@ -1,0 +1,89 @@
+[
+  {
+    "brand": "Samsung",
+    "model": "Galaxy S24",
+    "name": "Samsung Galaxy S24",
+    "image": "https://images.samsung.com/is/image/samsung/p6pim/levant/sm-s921bzvamea/gallery/levant-galaxy-s24-s921-sm-s921bzvamea-thumb-539573812",
+    "specs": {
+      "display": {
+        "size": "6.2 inches",
+        "resolution": "1080 x 2340 pixels",
+        "type": "Dynamic AMOLED 2X",
+        "refresh_rate": "120Hz"
+      },
+      "performance": {
+        "processor": "Snapdragon 8 Gen 3",
+        "ram": "8GB",
+        "storage": "128GB",
+        "gpu": "Adreno 750"
+      },
+      "camera": {
+        "main": "50MP + 10MP + 12MP",
+        "front": "12MP",
+        "video": "8K"
+      },
+      "battery": {
+        "capacity": "4000 mAh",
+        "charging": "25W wired",
+        "wireless": "15W wireless"
+      },
+      "design": {
+        "dimensions": "147 x 70.6 x 7.6 mm",
+        "weight": "167 g",
+        "materials": "Armor aluminum and glass"
+      },
+      "connectivity": {
+        "network": "5G",
+        "wifi": "Wi-Fi 6E",
+        "bluetooth": "5.3",
+        "gps": "Yes"
+      },
+      "software": {
+        "os": "Android 14",
+        "ui": "One UI 6.1"
+      }
+    }
+  },
+  {
+    "brand": "Google",
+    "model": "Pixel 8",
+    "name": "Google Pixel 8",
+    "image": "https://lh3.googleusercontent.com/Gx8mGvWJ3t7X9n3mVZs5K4c8WqQ1Lz2v6R3Jx9nQfFq2r8mX5c",
+    "specs": {
+      "display": {
+        "size": "6.2 inches",
+        "resolution": "1080 x 2400 pixels",
+        "type": "OLED",
+        "refresh_rate": "120Hz"
+      },
+      "performance": {
+        "processor": "Google Tensor G3",
+        "ram": "8GB",
+        "storage": "128GB"
+      },
+      "camera": {
+        "main": "50MP + 12MP",
+        "front": "10.5MP",
+        "video": "4K"
+      },
+      "battery": {
+        "capacity": "4575 mAh",
+        "charging": "27W wired",
+        "wireless": "18W wireless"
+      },
+      "design": {
+        "dimensions": "150.5 x 70.8 x 8.9 mm",
+        "weight": "187 g"
+      },
+      "connectivity": {
+        "network": "5G",
+        "wifi": "Wi-Fi 7",
+        "bluetooth": "5.3",
+        "gps": "Yes"
+      },
+      "software": {
+        "os": "Android 14"
+      }
+    }
+  }
+]
