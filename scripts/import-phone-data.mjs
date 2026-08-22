@@ -3,13 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import phoneNormalization from '../src/lib/phone-normalization.js';
 
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: `file:${path.join(process.cwd(), 'prisma', 'dev.db')}`,
-    },
-  },
-});
+const prisma = new PrismaClient();
 const IMPORT_DIR = path.join(process.cwd(), 'data', 'imports');
 const { normalizePhoneRecord } = phoneNormalization;
 

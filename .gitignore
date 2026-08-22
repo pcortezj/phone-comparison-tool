@@ -36,6 +36,7 @@ yarn-error.log*
 
 # local phone datasets
 /data/imports/*.json
+/data/exports/
 /dev.db
 /dev.db-journal
 /prisma/dev.db
@@ -43,6 +44,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel

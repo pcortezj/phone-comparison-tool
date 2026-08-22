@@ -109,11 +109,11 @@ export const searchDevices = async (query: string, brandSlug?: string, releaseYe
         normalizedQuery
           ? {
               OR: [
-                { name: { contains: normalizedQuery } },
-                { model: { contains: normalizedQuery } },
+                { name: { contains: normalizedQuery, mode: 'insensitive' } },
+                { model: { contains: normalizedQuery, mode: 'insensitive' } },
                 {
                   brand: {
-                    name: { contains: normalizedQuery },
+                    name: { contains: normalizedQuery, mode: 'insensitive' },
                   },
                 },
               ],
