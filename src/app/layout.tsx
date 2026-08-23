@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Difference AI",
-  description: "Compare smartphone specs from your own local catalog.",
+  title: "DifferenceAI",
+  description: "Search, filter, and compare thousands of smartphones side by side, with an AI assistant to answer your questions.",
 };
 
 export default function RootLayout({
