@@ -290,7 +290,7 @@ export default function Home() {
             <input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Try Galaxy S24, Pixel, Samsung, iPhone..."
+              placeholder="Try iPhone 17, Pixel 11, Galaxy Z Fold8, BlackBerry..."
             />
           </label>
 
