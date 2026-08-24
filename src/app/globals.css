@@ -218,6 +218,27 @@ img {
   box-shadow: 0 0 12px currentColor;
 }
 
+.site-footer {
+  padding: 1.5rem 1rem 2rem;
+  text-align: center;
+  color: var(--accent);
+  font-family: "SFMono-Regular", "IBM Plex Mono", "Menlo", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.site-footer a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.site-footer a:hover {
+  text-shadow: 0 0 12px currentColor;
+}
+
 .hero-stats,
 .selected-grid,
 .results-grid,

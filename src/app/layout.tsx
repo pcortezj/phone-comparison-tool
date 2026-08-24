@@ -13,7 +13,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <footer className="site-footer">
+          Built by{" "}
+          <a
+            href="https://x.com/tronjcodes"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            tronjcodes
+          </a>{" "}
+          · © 2026 differenceAI
+        </footer>
+      </body>
     </html>
   );
 }
