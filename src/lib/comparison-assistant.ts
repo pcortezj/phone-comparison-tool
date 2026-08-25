@@ -8,7 +8,8 @@ const { parseNumericArrayBlob } = phoneNormalization as {
 type DeviceRecord = Awaited<ReturnType<typeof getDeviceByEncodedId>>;
 type PresentDeviceRecord = NonNullable<DeviceRecord>;
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_DISABLED = (process.env.COMPARE_ASSISTANT_DISABLE_OPENAI || '').toLowerCase() === 'true';
+const OPENAI_API_KEY = OPENAI_DISABLED ? undefined : process.env.OPENAI_API_KEY;
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5-mini';
 const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY || process.env.HF_TOKEN;
@@ -189,11 +190,7 @@ const buildComparisonPrompt = (question: string, phones: ReturnType<typeof build
   ].join('\n');
 };
 
-const buildFallbackAnswer = (
-  question: string,
-  phones: ReturnType<typeof buildPhoneSummary>[],
-  failureReason?: string
-) => {
+const buildFallbackAnswer = (question: string, phones: ReturnType<typeof buildPhoneSummary>[]) => {
   const bullets = phones.map((phone) => {
     const parts = [
       phone.display.sizeLabel && `display ${phone.display.sizeLabel}`,
@@ -210,12 +207,9 @@ const buildFallbackAnswer = (
   });
 
   return [
-    `I couldn't reach a live AI provider, so here's a grounded summary for: "${question}"`,
+    `The AI assistant isn't available right now, so here's a grounded summary based on the spec sheet for: "${question}"`,
     '',
     ...bullets,
-    '',
-    failureReason ? `Provider note: ${failureReason}` : null,
-    'Add `HF_TOKEN` for a hosted open model, add `OPENAI_API_KEY`, or start Ollama locally and try again for a natural-language recommendation.',
   ].join('\n');
 };
 
@@ -518,10 +512,14 @@ export const askComparisonAssistant = async (question: string, deviceIds: string
     }
   }
 
+  if (providerErrors.length > 0) {
+    console.error(`[comparison-assistant] All providers failed: ${providerErrors.join(' | ')}`);
+  }
+
   return {
-    answer: buildFallbackAnswer(question, phones, providerErrors.join(' | ')),
+    answer: buildFallbackAnswer(question, phones),
     source: 'fallback' as const,
-    model: providerErrors.length > 0 ? providerErrors.join(' | ') : ASSISTANT_PROVIDER,
+    model: ASSISTANT_PROVIDER,
     phones,
   };
 };
