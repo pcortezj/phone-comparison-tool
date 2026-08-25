@@ -135,7 +135,8 @@ img {
   flex-direction: column;
 }
 
-.hero-copy {
+.hero-copy,
+.compare-hero {
   position: relative;
   overflow: hidden;
 }
@@ -246,6 +247,10 @@ img {
 .compare-detail-sections {
   display: grid;
   gap: 1rem;
+}
+
+.compare-detail-sections {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .hero-stats {
@@ -516,6 +521,7 @@ img {
   padding: 0.95rem 1.05rem;
   outline: none;
   appearance: none;
+  font-size: 16px;
 }
 
 .search-input input::placeholder {
@@ -822,6 +828,13 @@ img {
   margin: 1rem 0;
 }
 
+.assistant-prompt-list .brand-pill {
+  flex: 1 1 auto;
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+
 .assistant-field {
   display: grid;
   gap: 0.55rem;
@@ -843,6 +856,7 @@ img {
   padding: 0.95rem 1.05rem;
   outline: none;
   resize: vertical;
+  font-size: 16px;
 }
 
 .assistant-field textarea::placeholder {
@@ -956,6 +970,15 @@ img {
 .comparison-table tbody td:first-child {
   color: var(--foreground-strong);
   font-weight: 700;
+}
+
+.comparison-table th:first-child,
+.comparison-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--background-strong);
+  box-shadow: 1px 0 0 var(--line);
 }
 
 .compare-status-card {
