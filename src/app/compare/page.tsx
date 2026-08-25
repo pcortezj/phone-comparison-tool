@@ -21,6 +21,13 @@ const STARTER_PROMPTS = [
   'Which one should I pick for everyday use?',
 ];
 
+const sectionIdFor = (category: string) =>
+  `section-${category
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')}`;
+
 export default function ComparePage() {
   const searchParams = useSearchParams();
   const [deviceDetails, setDeviceDetails] = useState<Record<string, DeviceDetail>>({});
@@ -31,9 +38,42 @@ export default function ComparePage() {
   const [assistantMeta, setAssistantMeta] = useState<string | null>(null);
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [assistantError, setAssistantError] = useState<string | null>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [sectionMenuOpen, setSectionMenuOpen] = useState(false);
 
   const deviceIds = searchParams.get('devices')?.split(',').filter(Boolean) || [];
   const deviceIdsKey = deviceIds.join(',');
+
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 480);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!sectionMenuOpen) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSectionMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [sectionMenuOpen]);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const scrollToSection = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setSectionMenuOpen(false);
+  };
 
   useEffect(() => {
     const ids = deviceIdsKey ? deviceIdsKey.split(',').filter(Boolean) : [];
@@ -146,6 +186,10 @@ export default function ComparePage() {
   }
 
   const firstDevice = deviceDetails[deviceIds[0]];
+  const sections = firstDevice?.detailSpec.map((category) => ({
+    id: sectionIdFor(category.category),
+    label: category.category,
+  })) || [];
 
   return (
     <main className="compare-shell">
@@ -244,7 +288,7 @@ export default function ComparePage() {
 
       <section className="compare-detail-sections">
         {firstDevice?.detailSpec.map((category, categoryIndex) => (
-          <article key={category.category} className="comparison-section">
+          <article key={category.category} id={sectionIdFor(category.category)} className="comparison-section">
             <div className="comparison-section-header">
               <span className="eyebrow">{category.category}</span>
               <h2>{category.category} comparison</h2>
@@ -278,6 +322,57 @@ export default function ComparePage() {
           </article>
         ))}
       </section>
+
+      {sections.length > 0 && (
+        <div className="section-jump">
+          {sectionMenuOpen && (
+            <div className="section-jump-menu" id="section-jump-menu" role="menu">
+              {sections.map((section) => (
+                <button
+                  key={section.id}
+                  type="button"
+                  role="menuitem"
+                  className="brand-pill section-jump-item"
+                  onClick={() => scrollToSection(section.id)}
+                >
+                  {section.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {sectionMenuOpen && (
+            <button
+              type="button"
+              className="section-jump-scrim"
+              aria-label="Close section menu"
+              onClick={() => setSectionMenuOpen(false)}
+            />
+          )}
+
+          <button
+            type="button"
+            className="ghost-button section-jump-toggle"
+            onClick={() => setSectionMenuOpen((open) => !open)}
+            aria-haspopup="true"
+            aria-expanded={sectionMenuOpen}
+            aria-controls="section-jump-menu"
+          >
+            {sectionMenuOpen ? 'Close' : 'Jump to section'}
+          </button>
+        </div>
+      )}
+
+      <button
+        type="button"
+        className={`back-to-top${showBackToTop ? ' visible' : ''}`}
+        onClick={scrollToTop}
+        aria-label="Back to top"
+        aria-hidden={!showBackToTop}
+        tabIndex={showBackToTop ? 0 : -1}
+      >
+        ↑
+      </button>
     </main>
   );
 }
