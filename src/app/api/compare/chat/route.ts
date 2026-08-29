@@ -33,10 +33,10 @@ export async function POST(request: Request) {
     const deviceIds = Array.isArray(body.deviceIds) ? body.deviceIds.filter(Boolean) : [];
     const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
 
-    if (deviceIds.length < 2) {
+    if (deviceIds.length < 1) {
       return NextResponse.json(
         {
-          error: 'Select at least two phones before asking for a comparison.',
+          error: 'Select at least one phone before asking a question.',
         },
         { status: 400 }
       );

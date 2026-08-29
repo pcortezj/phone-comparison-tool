@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { SyntheticEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface Brand {
   id: string;
@@ -22,6 +23,8 @@ interface Device {
 interface DeviceDetail {
   name: string;
   img: string;
+  brand?: string;
+  model?: string;
   quickSpec: Array<{ name: string; value: string }>;
   detailSpec: Array<{
     category: string;
@@ -32,8 +35,14 @@ interface DeviceDetail {
 const MAX_COMPARE = 4;
 const PHONE_IMAGE_FALLBACK = '/phone-placeholder.svg';
 
+const phonePageHref = (deviceId: string) => {
+  const [brandSlug, deviceSlug] = deviceId.split('::');
+  return brandSlug && deviceSlug ? `/phones/${brandSlug}/${deviceSlug}` : null;
+};
+
 export default function Home() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [releaseYears, setReleaseYears] = useState<number[]>([]);
   const [selectedBrand, setSelectedBrand] = useState<string>('');
@@ -51,6 +60,19 @@ export default function Home() {
 
   useEffect(() => {
     void fetchBrands();
+  }, []);
+
+  useEffect(() => {
+    const idsParam = searchParams.get('devices');
+    if (!idsParam) {
+      return;
+    }
+
+    const ids = idsParam.split(',').filter(Boolean).slice(0, MAX_COMPARE);
+    ids.forEach((id) => void addDeviceById(id));
+    // Runs once on mount to hydrate the workspace from a "Compare this phone" link;
+    // not re-run on every searchParams change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -130,6 +152,28 @@ export default function Home() {
 
       return [...current, device];
     });
+  };
+
+  const addDeviceById = async (deviceId: string) => {
+    try {
+      const response = await fetch(`/api/phones/device/${encodeURIComponent(deviceId)}`);
+      const payload = await response.json();
+
+      if (!response.ok || payload.error) {
+        return;
+      }
+
+      const detail: DeviceDetail = payload.device;
+      addToComparison({
+        id: deviceId,
+        name: detail.name,
+        img: detail.img,
+        description: detail.model || detail.name,
+        brand: detail.brand,
+      });
+    } catch (error) {
+      console.error('Error preloading device into workspace:', error);
+    }
   };
 
   const handleDeviceImageError = (event: SyntheticEvent<HTMLImageElement>) => {
@@ -366,7 +410,15 @@ export default function Home() {
                   />
                   <div>
                     <p className="device-brand">{device.brand || 'Catalog device'}</p>
-                    <h3>{device.name}</h3>
+                    <h3>
+                      {phonePageHref(device.id) ? (
+                        <Link href={phonePageHref(device.id)!} className="device-name-link">
+                          {device.name}
+                        </Link>
+                      ) : (
+                        device.name
+                      )}
+                    </h3>
                     <p>{device.description}</p>
                   </div>
                 </div>

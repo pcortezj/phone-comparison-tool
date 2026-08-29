@@ -615,6 +615,15 @@ img {
   color: var(--foreground-strong);
 }
 
+.device-name-link {
+  color: inherit;
+}
+
+.device-name-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 .compare-shell {
   padding-top: clamp(1.25rem, 2vw, 2.25rem);
 }
@@ -1183,4 +1192,129 @@ img {
   .compare-device-image {
     width: min(100%, 200px);
   }
+}
+
+/* Individual phone pages */
+
+.brand-index-hero {
+  grid-template-columns: 1fr;
+}
+
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.breadcrumb-item a {
+  color: var(--muted-strong);
+}
+
+.breadcrumb-item a:hover {
+  color: var(--accent);
+}
+
+.breadcrumb-item [aria-current="page"] {
+  color: var(--foreground-strong);
+}
+
+.breadcrumb-sep {
+  margin-left: 0.35rem;
+  color: var(--muted);
+}
+
+.spec-details-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.spec-details {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 1rem 1.25rem;
+}
+
+.spec-details summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+}
+
+.spec-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.spec-details-chevron {
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+
+.spec-details[open] .spec-details-chevron {
+  transform: rotate(180deg);
+}
+
+.spec-details .device-spec-list {
+  margin-top: 0.85rem;
+}
+
+.buy-options-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.retailer-button {
+  padding: 0.65rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-strong);
+  color: var(--foreground-strong);
+  font-weight: 600;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.retailer-button:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.affiliate-disclosure {
+  margin-top: 0.9rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.discontinued-notice {
+  color: var(--muted-strong);
+}
+
+.related-comparison-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.related-phone-card {
+  display: block;
+}
+
+/* Buy options nested inside the hero column (under the compare/brand actions)
+   already sit inside the hero's own panel, so drop the duplicate card chrome. */
+.device-hero-copy .buy-options-section {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 1rem 0 0;
+  margin-top: 0.25rem;
 }

@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   title: "DifferenceAI",
   description: "Search, filter, and compare thousands of smartphones side by side, with an AI assistant to answer your questions.",
 };

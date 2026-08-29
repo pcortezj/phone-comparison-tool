@@ -3,7 +3,7 @@ import phoneNormalization from '@/lib/phone-normalization.js';
 
 type SpecSections = Record<string, Record<string, string>>;
 
-const encodeDeviceId = (brandSlug: string, deviceSlug: string) => `${brandSlug}::${deviceSlug}`;
+export const encodeDeviceId = (brandSlug: string, deviceSlug: string) => `${brandSlug}::${deviceSlug}`;
 
 const decodeDeviceId = (value: string) => {
   const [brandSlug, deviceSlug] = value.split('::');

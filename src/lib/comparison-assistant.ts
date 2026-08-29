@@ -174,16 +174,24 @@ const buildPhoneSummary = (phone: PresentDeviceRecord) => {
 const buildComparisonPrompt = (question: string, phones: ReturnType<typeof buildPhoneSummary>[]) => {
   const context = JSON.stringify({ phones }, null, 2);
 
+  const isSinglePhone = phones.length === 1;
+
   return [
-    'You are a phone comparison assistant.',
-    'Answer only using the structured comparison data provided.',
+    isSinglePhone
+      ? 'You are a phone specification assistant answering questions about a single phone.'
+      : 'You are a phone comparison assistant.',
+    'Answer only using the structured phone data provided.',
     'Do not invent prices, benchmark scores, availability, or features that are not in the data.',
     'If the data is missing, say so clearly.',
-    'When comparing a specific attribute across phones, first line up each phone\'s exact value for that attribute, then check which value actually wins (e.g. the higher number, or whether values are tied) before writing your conclusion.',
-    'Focus on helping a consumer decide between the phones in the comparison.',
+    isSinglePhone
+      ? 'If the user asks how this phone compares to another phone that is not in the data, say you don\'t have that phone\'s specs and suggest using the comparison tool.'
+      : 'When comparing a specific attribute across phones, first line up each phone\'s exact value for that attribute, then check which value actually wins (e.g. the higher number, or whether values are tied) before writing your conclusion.',
+    isSinglePhone
+      ? 'Focus on helping a consumer decide whether this phone is right for them.'
+      : 'Focus on helping a consumer decide between the phones in the comparison.',
     'Keep the answer concise, practical, and easy to scan.',
     '',
-    'Comparison data:',
+    isSinglePhone ? 'Phone data:' : 'Comparison data:',
     context,
     '',
     `User question: ${question}`,
@@ -476,8 +484,8 @@ export const askComparisonAssistant = async (question: string, deviceIds: string
 
   const phones = await buildComparisonAssistantContext(deviceIds);
 
-  if (phones.length < 2) {
-    throw new Error('Select at least two phones before asking for a comparison.');
+  if (phones.length < 1) {
+    throw new Error('Select at least one phone before asking a question.');
   }
 
   const prompt = buildComparisonPrompt(question, phones);
