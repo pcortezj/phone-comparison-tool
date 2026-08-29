@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getBrands, getReleaseYears } from '@/lib/phone-catalog';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const [brands, releaseYears] = await Promise.all([getBrands(), getReleaseYears()]);
