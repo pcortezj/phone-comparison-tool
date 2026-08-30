@@ -16,6 +16,7 @@ export default function ComparisonChat({
   heading = 'Ask about the phones you’re comparing',
   description = 'Ask for a recommendation, a camera breakdown, battery tradeoffs, or a quick summary of the biggest differences.',
   starterPrompts = DEFAULT_STARTER_PROMPTS,
+  placeholder = 'Which one is better for travel photos, battery life, and long-term value?',
   phoneAiRequestDeviceId,
 }: {
   deviceIds: string[];
@@ -23,6 +24,7 @@ export default function ComparisonChat({
   heading?: string;
   description?: string;
   starterPrompts?: string[];
+  placeholder?: string;
   /** When set, fires a `phone_ai_request` event for this device id on ask (used on individual phone pages). */
   phoneAiRequestDeviceId?: string;
 }) {
@@ -82,7 +84,7 @@ export default function ComparisonChat({
   };
 
   return (
-    <section className="comparison-section assistant-section">
+    <section className="comparison-section assistant-section" id="ai-assistant">
       <div className="comparison-section-header">
         <span className="eyebrow">{eyebrow}</span>
         <h2>{heading}</h2>
@@ -111,7 +113,7 @@ export default function ComparisonChat({
         <textarea
           value={assistantPrompt}
           onChange={(event) => setAssistantPrompt(event.target.value)}
-          placeholder="Which one is better for travel photos, battery life, and long-term value?"
+          placeholder={placeholder}
           rows={4}
         />
       </label>

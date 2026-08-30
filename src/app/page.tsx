@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SyntheticEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -32,11 +32,6 @@ interface DeviceDetail {
   img: string;
   brand?: string;
   model?: string;
-  quickSpec: Array<{ name: string; value: string }>;
-  detailSpec: Array<{
-    category: string;
-    specifications: Array<{ name: string; value: string }>;
-  }>;
 }
 
 const MAX_COMPARE = 4;
@@ -59,10 +54,6 @@ export default function Home() {
   const [selectedDevices, setSelectedDevices] = useState<Device[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(true);
   const [loadingResults, setLoadingResults] = useState(false);
-  const [activeDevice, setActiveDevice] = useState<Device | null>(null);
-  const [activeDeviceDetail, setActiveDeviceDetail] = useState<DeviceDetail | null>(null);
-  const [deviceModalLoading, setDeviceModalLoading] = useState(false);
-  const [deviceModalError, setDeviceModalError] = useState<string | null>(null);
   const hasActiveSearch = searchTerm.trim().length > 0 || selectedBrand.length > 0 || selectedReleaseYear.length > 0;
   const searchSectionRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -97,27 +88,6 @@ export default function Home() {
 
     return () => clearTimeout(timeout);
   }, [searchTerm, selectedBrand, selectedReleaseYear, hasActiveSearch]);
-
-  useEffect(() => {
-    if (!activeDevice) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        closeDeviceModal();
-      }
-    };
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', onKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [activeDevice]);
 
   const fetchBrands = async () => {
     try {
@@ -206,35 +176,6 @@ export default function Home() {
     setSelectedDevices((current) => current.filter((device) => device.id !== deviceId));
   };
 
-  const openDeviceModal = async (device: Device) => {
-    setActiveDevice(device);
-    setActiveDeviceDetail(null);
-    setDeviceModalError(null);
-    setDeviceModalLoading(true);
-
-    try {
-      const response = await fetch(`/api/phones/device/${encodeURIComponent(device.id)}`);
-      const payload = await response.json();
-
-      if (!response.ok || payload.error) {
-        throw new Error(payload.details || payload.error || 'Failed to load the device.');
-      }
-
-      setActiveDeviceDetail(payload.device || null);
-    } catch (error) {
-      setDeviceModalError(error instanceof Error ? error.message : 'Failed to load the device.');
-    } finally {
-      setDeviceModalLoading(false);
-    }
-  };
-
-  const closeDeviceModal = () => {
-    setActiveDevice(null);
-    setActiveDeviceDetail(null);
-    setDeviceModalError(null);
-    setDeviceModalLoading(false);
-  };
-
   const submitComparison = () => {
     if (selectedDevices.length < 2) {
       return;
@@ -263,7 +204,6 @@ export default function Home() {
   const activeBrandName = brands.find((brand) => brand.id === selectedBrand)?.name || 'All brands';
   const activeReleaseYearLabel = selectedReleaseYear ? `Released in ${selectedReleaseYear}` : 'Any release year';
   const totalDevices = brands.reduce((sum, brand) => sum + brand.devices, 0);
-  const headlineSpec = useMemo(() => activeDeviceDetail?.quickSpec.slice(0, 4) || [], [activeDeviceDetail]);
 
   return (
     <main className="catalog-shell">
@@ -332,11 +272,16 @@ export default function Home() {
                 />
                 <div>
                   <p className="device-brand">{device.brand || 'Catalog device'}</p>
-                  <h3>{device.name}</h3>
+                  <h3>
+                    {phonePageHref(device.id) ? (
+                      <Link href={phonePageHref(device.id)!} className="device-name-link">
+                        {device.name}
+                      </Link>
+                    ) : (
+                      device.name
+                    )}
+                  </h3>
                   <p>{device.description}</p>
-                  <button type="button" className="device-inline-link" onClick={() => void openDeviceModal(device)}>
-                    View full specs
-                  </button>
                 </div>
                 <button type="button" className="remove-button" onClick={() => removeFromComparison(device.id)}>
                   Remove
@@ -465,9 +410,11 @@ export default function Home() {
                 <div className="device-card-actions">
                   <span className="result-tag">{isSelected ? 'Selected' : 'Ready'}</span>
                   <div className="device-card-buttons">
-                    <button type="button" className="ghost-link" onClick={() => void openDeviceModal(device)}>
-                      View specs
-                    </button>
+                    {phonePageHref(device.id) && (
+                      <Link href={`${phonePageHref(device.id)}#ai-assistant`} className="ghost-link">
+                        Ask AI
+                      </Link>
+                    )}
                     <button
                       type="button"
                       className={isSelected ? 'secondary-button' : 'primary-button compact'}
@@ -484,88 +431,6 @@ export default function Home() {
         </div>
       </section>
 
-      {activeDevice && (
-        <div className="device-modal-backdrop" onClick={closeDeviceModal} role="presentation">
-          <section
-            className="device-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="device-modal-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="device-modal-header">
-              <div>
-                <span className="eyebrow">Device profile</span>
-                <h2 id="device-modal-title">{activeDeviceDetail?.name || activeDevice.name}</h2>
-              </div>
-              <button type="button" className="ghost-button" onClick={closeDeviceModal}>
-                Close
-              </button>
-            </div>
-
-            {deviceModalLoading && (
-              <div className="device-modal-state">
-                <div className="spinner"></div>
-                <p>Loading this device profile...</p>
-              </div>
-            )}
-
-            {!deviceModalLoading && deviceModalError && (
-              <div className="device-modal-state error">
-                <h3>Device unavailable</h3>
-                <p>{deviceModalError}</p>
-              </div>
-            )}
-
-            {!deviceModalLoading && !deviceModalError && activeDeviceDetail && (
-              <div className="device-modal-body">
-                <div className="device-modal-overview">
-                  <div className="device-modal-image">
-                    <img
-                      src={activeDeviceDetail.img || PHONE_IMAGE_FALLBACK}
-                      alt={activeDeviceDetail.name}
-                      width={240}
-                      height={320}
-                      loading="lazy"
-                      decoding="async"
-                      onError={handleDeviceImageError}
-                    />
-                  </div>
-
-                  <div className="quick-spec-list">
-                    {headlineSpec.map((spec) => (
-                      <div key={spec.name} className="quick-spec-row">
-                        <span>{spec.name}</span>
-                        <strong>{spec.value}</strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="device-modal-spec-grid">
-                  {activeDeviceDetail.detailSpec.map((category) => (
-                    <article key={category.category} className="comparison-section">
-                      <div className="comparison-section-header">
-                        <span className="eyebrow">{category.category}</span>
-                        <h2>{category.category}</h2>
-                      </div>
-
-                      <div className="device-spec-list">
-                        {category.specifications.map((spec) => (
-                          <div key={`${category.category}-${spec.name}`} className="device-spec-row">
-                            <span>{spec.name}</span>
-                            <strong>{spec.value}</strong>
-                          </div>
-                        ))}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-        </div>
-      )}
     </main>
   );
 }

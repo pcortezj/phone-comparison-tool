@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
@@ -18,15 +19,24 @@ export default function RootLayout({
       <body>
         {children}
         <footer className="site-footer">
-          Built by{" "}
-          <a
-            href="https://x.com/tronjcodes"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            tronjcodes
-          </a>{" "}
-          · © 2026 differenceAI
+          <nav className="site-footer-nav" aria-label="Footer">
+            <Link href="/about">About</Link>
+            <span aria-hidden="true">·</span>
+            <Link href="/contact">Contact</Link>
+            <span aria-hidden="true">·</span>
+            <Link href="/privacy">Privacy</Link>
+          </nav>
+          <p>
+            Built by{" "}
+            <a
+              href="https://x.com/tronjcodes"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              tronjcodes
+            </a>{" "}
+            · © 2026 differenceAI
+          </p>
         </footer>
         <Analytics />
       </body>

@@ -167,6 +167,7 @@ export default async function PhonePage({ params }: { params: Promise<PageParams
           'Who should buy this phone?',
           'What are the best alternatives?',
         ]}
+        placeholder={`Is the ${detail.name} good for gaming, battery life, and everyday use?`}
         phoneAiRequestDeviceId={deviceId}
       />
 
