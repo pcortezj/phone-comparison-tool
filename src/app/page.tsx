@@ -1,9 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SyntheticEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  trackSearchCtaClicked,
+  trackSearchInputFocused,
+  trackPhoneSearch,
+  trackPhoneSelected,
+  trackCompareStarted,
+} from '@/lib/analytics';
 
 interface Brand {
   id: string;
@@ -57,6 +64,8 @@ export default function Home() {
   const [deviceModalLoading, setDeviceModalLoading] = useState(false);
   const [deviceModalError, setDeviceModalError] = useState<string | null>(null);
   const hasActiveSearch = searchTerm.trim().length > 0 || selectedBrand.length > 0 || selectedReleaseYear.length > 0;
+  const searchSectionRef = useRef<HTMLElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     void fetchBrands();
@@ -135,7 +144,9 @@ export default function Home() {
 
       const response = await fetch(`/api/phones/search?${params.toString()}`);
       const data = await response.json();
-      setResults(data.devices || []);
+      const devices = data.devices || [];
+      setResults(devices);
+      trackPhoneSearch(query, devices.length);
     } catch (error) {
       console.error('Error searching devices:', error);
       setResults([]);
@@ -145,6 +156,12 @@ export default function Home() {
   };
 
   const addToComparison = (device: Device) => {
+    const alreadySelected = selectedDevices.some((item) => item.id === device.id);
+    const atLimit = selectedDevices.length >= MAX_COMPARE;
+    if (!alreadySelected && !atLimit) {
+      trackPhoneSelected(device.id);
+    }
+
     setSelectedDevices((current) => {
       if (current.some((item) => item.id === device.id) || current.length >= MAX_COMPARE) {
         return current;
@@ -223,8 +240,24 @@ export default function Home() {
       return;
     }
 
+    trackCompareStarted(selectedDevices.length);
     const ids = selectedDevices.map((device) => device.id).join(',');
     router.push(`/compare?devices=${ids}`);
+  };
+
+  const handleSearchCtaClick = () => {
+    trackSearchCtaClicked();
+    // Focus first (synchronously, within the click handler) so iOS Safari still
+    // treats it as part of the user gesture and opens the keyboard; preventScroll
+    // avoids the browser's own focus-scroll fighting with our smooth scroll below.
+    searchInputRef.current?.focus({ preventScroll: true });
+
+    const prefersReducedMotion =
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    searchSectionRef.current?.scrollIntoView({
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      block: 'start',
+    });
   };
 
   const activeBrandName = brands.find((brand) => brand.id === selectedBrand)?.name || 'All brands';
@@ -242,8 +275,11 @@ export default function Home() {
           <span className="eyebrow">The AI-powered smartphone comparison engine.</span>
           <h1>Compare phones. Know the difference.</h1>
           <p>
-            Put the specs side by side and see which phone comes out ahead.
+            Compare specs side by side and see which phone comes out ahead.
           </p>
+          <button type="button" className="primary-button search-cta" onClick={handleSearchCtaClick}>
+            Search phones <span aria-hidden="true">&darr;</span>
+          </button>
           <div className="hero-stats">
             <div>
               <strong>{brands.length}</strong>
@@ -320,11 +356,12 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="search-panel">
+      <section className="search-panel" id="search-section" ref={searchSectionRef}>
         <div className="panel-header search-header">
           <div>
             <p className="panel-kicker">Search everything</p>
-            <h2>Find any phone in the catalog</h2>
+            <h2>Search phones</h2>
+            <p>Find any phone in the {totalDevices}+ device catalog.</p>
           </div>
         </div>
 
@@ -332,8 +369,10 @@ export default function Home() {
           <label className="search-input">
             <span>Search by model, phone name, or brand</span>
             <input
+              ref={searchInputRef}
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
+              onFocus={() => trackSearchInputFocused()}
               placeholder="Try iPhone 17, Pixel 11, Galaxy Z Fold8, BlackBerry..."
             />
           </label>

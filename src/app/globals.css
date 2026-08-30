@@ -31,8 +31,10 @@
   box-sizing: border-box;
 }
 
-html {
-  scroll-behavior: smooth;
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 body {
@@ -1274,13 +1276,22 @@ img {
 }
 
 .retailer-button {
-  padding: 0.65rem 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0.6rem 0.95rem;
   border-radius: 999px;
   border: 1px solid var(--line-strong);
   background: var(--panel-strong);
   color: var(--foreground-strong);
   font-weight: 600;
+  white-space: nowrap;
   transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.retailer-button span {
+  color: var(--accent);
 }
 
 .retailer-button:hover {
@@ -1311,10 +1322,37 @@ img {
 
 /* Buy options nested inside the hero column (under the compare/brand actions)
    already sit inside the hero's own panel, so drop the duplicate card chrome. */
-.device-hero-copy .buy-options-section {
+.device-hero-copy .buy-options-section,
+.compare-device-card .buy-options-section {
   background: transparent;
   border: none;
   box-shadow: none;
   padding: 1rem 0 0;
   margin-top: 0.25rem;
+}
+
+.compare-device-card .buy-options-section .comparison-section-header h2 {
+  font-size: 1.05rem;
+}
+
+/* Homepage "Search phones" CTA */
+
+.search-cta {
+  gap: 0.6rem;
+  font-size: 1.05rem;
+}
+
+.search-cta span {
+  font-size: 1.1em;
+}
+
+.search-header p {
+  margin-top: 0.35rem;
+  color: var(--muted);
+}
+
+@media (max-width: 780px) {
+  .search-cta {
+    width: 100%;
+  }
 }

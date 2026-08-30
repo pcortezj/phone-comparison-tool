@@ -47,7 +47,8 @@ export default function BuyOptions({
             className="retailer-button"
             onClick={() => trackAffiliateClick(deviceId, retailer.key)}
           >
-            Check {retailer.label}
+            {retailer.label}
+            <span aria-hidden="true">&rarr;</span>
           </a>
         ))}
       </div>

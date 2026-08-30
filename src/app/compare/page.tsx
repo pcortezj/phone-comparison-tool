@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import ComparisonChat from '@/components/ComparisonChat';
+import BuyOptions from '@/components/BuyOptions';
+import type { RetailerLink } from '@/lib/affiliate-links';
 
 interface DeviceDetail {
   name: string;
@@ -13,6 +15,8 @@ interface DeviceDetail {
     category: string;
     specifications: Array<{ name: string; value: string }>;
   }>;
+  retailers: RetailerLink[];
+  isDiscontinued: boolean;
 }
 
 const sectionIdFor = (category: string) =>
@@ -168,6 +172,11 @@ export default function ComparePage() {
                   </div>
                 ))}
               </div>
+              <BuyOptions
+                deviceId={deviceId}
+                retailers={detail.retailers || []}
+                isDiscontinued={detail.isDiscontinued}
+              />
             </article>
           );
         })}

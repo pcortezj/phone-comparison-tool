@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDeviceByBrandModel, getDeviceByEncodedId } from '@/lib/phone-catalog';
 import { buildDeviceDetail } from '@/lib/device-detail';
+import { getRetailerLinks } from '@/lib/affiliate-links';
 
 export async function GET(
   request: Request,
@@ -37,8 +38,14 @@ export async function GET(
       }, { status: 404 });
     }
 
+    const deviceDetail = buildDeviceDetail(phone);
+
     return NextResponse.json({
-      device: buildDeviceDetail(phone),
+      device: {
+        ...deviceDetail,
+        retailers: getRetailerLinks(deviceDetail.name),
+        isDiscontinued: phone.isDiscontinued,
+      },
       message: 'Device details from the local catalog'
     });
   } catch (error) {
