@@ -36,6 +36,29 @@ interface DeviceDetail {
 
 const MAX_COMPARE = 4;
 const PHONE_IMAGE_FALLBACK = '/phone-placeholder.svg';
+const WORKSPACE_STORAGE_KEY = 'differenceai:selectedDevices';
+
+const readStoredDevices = (): Device[] => {
+  try {
+    const raw = sessionStorage.getItem(WORKSPACE_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeStoredDevices = (devices: Device[]) => {
+  try {
+    sessionStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(devices));
+  } catch {
+    // Storage unavailable (e.g. private browsing) - fail silently, nothing to persist.
+  }
+};
 
 const phonePageHref = (deviceId: string) => {
   const [brandSlug, deviceSlug] = deviceId.split('::');
@@ -61,6 +84,20 @@ export default function Home() {
   useEffect(() => {
     void fetchBrands();
   }, []);
+
+  useEffect(() => {
+    const stored = readStoredDevices();
+    if (stored.length > 0) {
+      setSelectedDevices(stored);
+    }
+    // Restore once on mount; this is a persistence read, not a fresh user
+    // selection, so it deliberately bypasses addToComparison's tracking.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    writeStoredDevices(selectedDevices);
+  }, [selectedDevices]);
 
   useEffect(() => {
     const idsParam = searchParams.get('devices');
