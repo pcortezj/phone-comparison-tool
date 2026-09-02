@@ -19,6 +19,11 @@ interface DeviceDetail {
   isDiscontinued: boolean;
 }
 
+const phonePageHref = (deviceId: string) => {
+  const [brandSlug, deviceSlug] = deviceId.split('::');
+  return brandSlug && deviceSlug ? `/phones/${brandSlug}/${deviceSlug}` : null;
+};
+
 const sectionIdFor = (category: string) =>
   `section-${category
     .toLowerCase()
@@ -163,7 +168,15 @@ export default function ComparePage() {
               <div className="compare-device-image">
                 <img src={detail.img} alt={detail.name} />
               </div>
-              <h2>{detail.name}</h2>
+              <h2>
+                {phonePageHref(deviceId) ? (
+                  <Link href={phonePageHref(deviceId)!} className="device-name-link">
+                    {detail.name}
+                  </Link>
+                ) : (
+                  detail.name
+                )}
+              </h2>
               <div className="quick-spec-list">
                 {detail.quickSpec.map((spec) => (
                   <div key={`${deviceId}-${spec.name}`} className="quick-spec-row">
